@@ -1,0 +1,13 @@
+MRI:
+
+    ruby 2.7.2p137 (2020-10-01 revision 5445e04352) [x86_64-darwin19]
+    Warming up --------------------------------------
+                found     1.316M i/100ms
+            not-found     1.314M i/100ms
+    Calculating -------------------------------------
+                found     13.113M (± 1.5%) i/s -     65.791M in   5.018283s
+            not-found     13.248M (± 1.1%) i/s -     66.993M in   5.057653s
+
+Before:
+
+
