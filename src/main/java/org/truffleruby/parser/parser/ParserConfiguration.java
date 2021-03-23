@@ -47,17 +47,24 @@ public class ParserConfiguration {
     // whether we should save the end-of-file data as DATA
     private boolean saveData = false;
 
+    private final boolean core;
     private boolean frozenStringLiteral = false;
     public boolean allowTruffleRubyPrimitives = false;
 
     private Encoding defaultEncoding;
     private RubyContext context;
 
-    public ParserConfiguration(RubyContext context, boolean inlineSource, boolean isFileParse, boolean saveData) {
+    public ParserConfiguration(
+            RubyContext context,
+            boolean inlineSource,
+            boolean isFileParse,
+            boolean saveData,
+            boolean core) {
         this.context = context;
         this.inlineSource = inlineSource;
         this.isEvalParse = !isFileParse;
         this.saveData = saveData;
+        this.core = core;
     }
 
     public void setFrozenStringLiteral(boolean frozenStringLiteral) {
@@ -129,5 +136,10 @@ public class ParserConfiguration {
      * @return true if source is from -e option */
     public boolean isInlineSource() {
         return inlineSource;
+    }
+
+    public boolean freezeInterpolatedStrings() {
+        // Core doesn't work with frozen string interpolation
+        return frozenStringLiteral && !core;
     }
 }

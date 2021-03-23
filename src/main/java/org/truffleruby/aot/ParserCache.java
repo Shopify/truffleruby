@@ -60,7 +60,7 @@ public class ParserCache {
 
     private static RootParseNode parse(RubySource source) {
         final StaticScope staticScope = new StaticScope(StaticScope.Type.LOCAL, null);
-        final ParserConfiguration parserConfiguration = new ParserConfiguration(null, false, true, false);
+        final ParserConfiguration parserConfiguration = new ParserConfiguration(null, false, true, false, true);
         RubyDeferredWarnings rubyWarnings = new RubyDeferredWarnings();
         RootParseNode rootParseNode = TranslatorDriver
                 .parseToJRubyAST(null, source, staticScope, parserConfiguration, rubyWarnings);

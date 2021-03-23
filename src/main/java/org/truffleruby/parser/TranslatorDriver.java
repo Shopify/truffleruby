@@ -151,7 +151,8 @@ public class TranslatorDriver {
                 context,
                 isInlineSource,
                 !isEvalParse,
-                false);
+                false,
+                context.getCoreLibrary().isLoadingRubyCore());
 
         if (language.options.FROZEN_STRING_LITERALS) {
             parserConfiguration.setFrozenStringLiteral(true);

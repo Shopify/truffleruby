@@ -260,6 +260,16 @@ describe "Ruby String literals" do
     it "produce different objects for literals with the same content in different files if they have different encodings" do
       ruby_exe(fixture(__FILE__, "freeze_magic_comment_across_files_diff_enc.rb")).chomp.should == "true"
     end
+
+    it "interpolated string is frozen" do
+      ruby_exe(fixture(__FILE__, "freeze_magic_comment_interpolation.rb")).chomp.should == "true"
+    end
+
+    describe "when disabled" do
+      it "interpolated string is not frozen" do
+        ruby_exe(fixture(__FILE__, "non_frozen_interpolation.rb")).chomp.should == "false"
+      end
+    end
   end
 
 end
