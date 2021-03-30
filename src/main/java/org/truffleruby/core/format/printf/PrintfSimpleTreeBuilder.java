@@ -197,7 +197,7 @@ public class PrintfSimpleTreeBuilder {
                                     n = WriteBytesNodeGen.create(conversionNode);
                                 }
                                 if (config.hasPrecision()) {
-                                    n = WriteTruncatedBytesNodeGen.create(config.getPrecision(), n);
+                                    n = WriteTruncatedBytesNodeGen.create(n);
                                 }
                                 node = n;
                                 break;

@@ -10,11 +10,11 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 
 @NodeChild("value")
 public abstract class WriteTruncatedBytesNode extends FormatNode {
-    private final Integer size;
+//    private final Integer size;
 
-    public WriteTruncatedBytesNode(Integer size) {
-        this.size = size;
-    }
+//    public WriteTruncatedBytesNode(Integer size) {
+//        this.size = size;
+//    }
 
     @Specialization
     protected Object write(VirtualFrame frame, byte[] bytes) {
