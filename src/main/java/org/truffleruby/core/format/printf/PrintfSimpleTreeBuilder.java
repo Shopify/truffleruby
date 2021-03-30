@@ -32,6 +32,7 @@ import org.truffleruby.core.format.read.array.ReadIntegerNodeGen;
 import org.truffleruby.core.format.read.array.ReadStringNodeGen;
 import org.truffleruby.core.format.read.array.ReadValueNodeGen;
 import org.truffleruby.core.format.write.bytes.WriteBytesNodeGen;
+import org.truffleruby.core.format.write.bytes.WriteTruncatedBytesNodeGen;
 import org.truffleruby.core.format.write.bytes.WritePaddedBytesNodeGen;
 import org.truffleruby.core.rope.CodeRange;
 import org.truffleruby.core.rope.RopeConstants;
@@ -189,11 +190,16 @@ public class PrintfSimpleTreeBuilder {
                                             .create(true, conversionMethodName, false, EMPTY_BYTES, valueNode);
                                 }
 
+                                FormatNode n;
                                 if (config.getWidth() != null || config.isWidthStar()) {
-                                    node = WritePaddedBytesNodeGen.create(config.isMinus(), widthNode, conversionNode);
+                                    n = WritePaddedBytesNodeGen.create(config.isMinus(), widthNode, conversionNode);
                                 } else {
-                                    node = WriteBytesNodeGen.create(conversionNode);
+                                    n = WriteBytesNodeGen.create(conversionNode);
                                 }
+                                if (config.hasPrecision()) {
+                                    n = WriteTruncatedBytesNodeGen.create(config.getPrecision(), n);
+                                }
+                                node = n;
                                 break;
                             default:
                                 throw new UnsupportedOperationException();
