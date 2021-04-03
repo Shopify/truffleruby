@@ -10,6 +10,7 @@
 package org.truffleruby.core.format.read.array;
 
 import org.truffleruby.core.array.ArrayGuards;
+import org.truffleruby.core.string.RubyString;
 import org.truffleruby.core.array.library.ArrayStoreLibrary;
 import org.truffleruby.core.format.FormatNode;
 import org.truffleruby.core.format.LiteralFormatNode;
@@ -17,6 +18,7 @@ import org.truffleruby.core.format.convert.ToStringNode;
 import org.truffleruby.core.format.convert.ToStringNodeGen;
 import org.truffleruby.core.format.read.SourceNode;
 import org.truffleruby.core.format.write.bytes.WriteByteNodeGen;
+import org.truffleruby.core.rope.RopeNodes;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.dsl.ImportStatic;
@@ -33,6 +35,7 @@ public abstract class ReadStringNode extends FormatNode {
     private final String conversionMethod;
     private final boolean inspectOnConversionFailure;
     private final Object valueOnNil;
+    private final Integer precision;
 
     @Child private ToStringNode toStringNode;
 
@@ -40,11 +43,13 @@ public abstract class ReadStringNode extends FormatNode {
             boolean convertNumbersToStrings,
             String conversionMethod,
             boolean inspectOnConversionFailure,
-            Object valueOnNil) {
+            Object valueOnNil,
+            Integer precision) {
         this.convertNumbersToStrings = convertNumbersToStrings;
         this.conversionMethod = conversionMethod;
         this.inspectOnConversionFailure = inspectOnConversionFailure;
         this.valueOnNil = valueOnNil;
+        this.precision = precision;
     }
 
     @Specialization(limit = "storageStrategyLimit()")
@@ -62,6 +67,14 @@ public abstract class ReadStringNode extends FormatNode {
                     inspectOnConversionFailure,
                     valueOnNil,
                     WriteByteNodeGen.create(new LiteralFormatNode((byte) 0))));
+        }
+
+//        TODO: wrap into a Node and call execute() on it instead of having the logic here?
+        if (this.precision != null) {
+            RopeNodes.SubstringNode substringNode = RopeNodes.SubstringNode.create();
+            RubyString string = (RubyString) value;
+            string.setRope(substringNode.executeSubstring(string.rope, 0, this.precision));
+            return toStringNode.executeToString(frame, string);
         }
 
         return toStringNode.executeToString(frame, value);
