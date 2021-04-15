@@ -1,0 +1,7 @@
+% brew install rbspy
+
+% sudo rbspy record --raw-file demo-mri ruby tool/diffprof/demo.rb
+
+% jt --use jvm ruby --cpusampler --cpusampler.Mode=roots --cpusampler.Output=json --cpusampler.OutputFile=demo-tr tool/diffprof/demo.rb
+
+% ruby tool/diffprof/tool.rb demo-mri demo-tr
