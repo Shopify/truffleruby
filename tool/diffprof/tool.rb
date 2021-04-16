@@ -124,7 +124,7 @@ def match_activation(sample, activation)
   end
 end
 
-JSON.parse(File.read(tr_filename))['profile'].each do |thread|
+JSON.parse(File.read(tr_filename), max_nesting: false)['profile'].each do |thread|
   next unless thread['thread'].start_with?('Thread[main,')
   sample = thread['samples'].first
   match_activation sample, main_activation
