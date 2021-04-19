@@ -221,7 +221,7 @@ module Truffle::POSIX
   attach_function :truffleposix_rewinddir, [:pointer], :void, LIBTRUFFLEPOSIX
   attach_function :rmdir, [:string], :int
   attach_function :seekdir, [:pointer, :long], :void
-  attach_function :truffleposix_select, [:int, :pointer, :int, :pointer, :int, :pointer, :long], :int, LIBTRUFFLEPOSIX
+  attach_function :truffleposix_select, [:int, :pointer, :int, :pointer, :int, :pointer, :long], :int, LIBTRUFFLEPOSIX, true
   attach_function :truffleposix_stat, [:string, :pointer], :int, LIBTRUFFLEPOSIX
   attach_function :truffleposix_stat_mode, [:string], :mode_t, LIBTRUFFLEPOSIX
   attach_function :truffleposix_stat_size, [:string], :long, LIBTRUFFLEPOSIX
@@ -310,8 +310,6 @@ module Truffle::POSIX
   unless Truffle::Platform.darwin?
     attach_function :dup3, [:int, :int, :int], :int
   end
-
-  SELECT = method(:truffleposix_select)
 
   def self.with_array_of_ints(ints)
     if ints.empty?
