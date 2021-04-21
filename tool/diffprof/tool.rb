@@ -1,7 +1,7 @@
 require 'zlib'
 require 'json'
 
-mri_filename, tr_filename, * = ARGV
+mri_filename, tr_filename, *rest = ARGV
 
 # The main data structure is a tree of activations with method name, source
 # location, and the number of times this activation was sampled in both
@@ -115,31 +115,65 @@ def match_activation(sample, activation)
       return if name == 'raise'
 
       # Print some debug output and try to fix if you care about this part of call stack...
+      puts
       puts 'no match!'
-      puts name
+      puts "in #{activation.name}"
+      puts "for #{name}"
       activation.children.each do |candidate|
-        puts candidate.name
+        puts "maybe #{candidate.name}"
       end
+      puts
     end
   end
 end
 
 JSON.parse(File.read(tr_filename), max_nesting: false)['profile'].each do |thread|
   next unless thread['thread'].start_with?('Thread[main,')
-  sample = thread['samples'].first
+  sample = thread['samples'].find { |s| s['root_name'] == '<main>' }
   match_activation sample, main_activation
+end
+
+def find_root(root, activation)
+  if activation.name == root
+    activation
+  else
+    activation.children.each do |child|
+      found = find_root(root, child)
+      return found if found
+    end
+    nil
+  end
+end
+
+until rest.empty?
+  arg = rest.shift
+  case arg
+  when '--root'
+    root = rest.shift
+    raise unless root
+    main_activation = find_root(root, main_activation)
+    raise unless main_activation
+  end
 end
 
 # Print the tree of activations with samples from both implementations
 
+def print_hits(hits, max_hits)
+  if hits == 0
+    printf '    - '
+  else
+    printf '%5.1f%%', hits / max_hits.to_f * 100
+  end
+end
+
 def print_activation(indentation, activation, main_activation)
-  printf '%5.1f%%', activation.mri / main_activation.mri.to_f * 100
+  print_hits activation.mri, main_activation.mri
   print '  '
-  printf '%5.1f%%', activation.truffle / main_activation.truffle.to_f * 100
+  print_hits activation.truffle, main_activation.truffle
   print ' ' * indentation
   print '  '
   print activation.name
-  print '  '
+  print ' ' * (30 - activation.name.size)
   if activation.file
     print activation.file 
     print ':'
