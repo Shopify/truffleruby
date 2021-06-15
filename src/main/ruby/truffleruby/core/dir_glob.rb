@@ -283,6 +283,7 @@ class Dir
       end
 
       def process_entry(entry, is_dir, matches, parent, glob_base_dir)
+        return unless entry
         matches << path_join(parent, entry) if match? entry
       end
     end
