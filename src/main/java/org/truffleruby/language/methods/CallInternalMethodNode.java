@@ -61,13 +61,24 @@ public abstract class CallInternalMethodNode extends RubyBaseNode {
             @Cached("method.getCallTarget()") RootCallTarget cachedCallTarget,
             @Cached("method") InternalMethod cachedMethod,
             @Cached("createCall(cachedMethod.getName(), cachedCallTarget)") DirectCallNode callNode) {
+        logCall(cachedMethod);
         return callNode.call(packArguments(callerData, method, self, block, args));
     }
 
     @Specialization(guards = "!method.alwaysInlined()", replaces = "callCached")
     protected Object callUncached(Object callerData, InternalMethod method, Object self, Object block, Object[] args,
             @Cached IndirectCallNode indirectCallNode) {
+        logCall(method);
         return indirectCallNode.call(method.getCallTarget(), packArguments(callerData, method, self, block, args));
+    }
+
+    @TruffleBoundary
+    private static void logCall(InternalMethod method) {
+        InternalMethod.dynamicCallCounter.incrementAndGet();
+
+        if (method.getSharedMethodInfo().getArity().isKeywordArgumentOptimizable()) {
+            InternalMethod.optimizableCallCounter.incrementAndGet();
+        }
     }
 
     @Specialization(

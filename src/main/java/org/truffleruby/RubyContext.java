@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
@@ -52,6 +53,7 @@ import org.truffleruby.core.hash.ReHashable;
 import org.truffleruby.core.inlined.CoreMethods;
 import org.truffleruby.core.kernel.AtExitManager;
 import org.truffleruby.core.kernel.TraceManager;
+import org.truffleruby.core.method.RubyMethod;
 import org.truffleruby.core.module.RubyModule;
 import org.truffleruby.core.objectspace.ObjectSpaceManager;
 import org.truffleruby.core.proc.ProcOperations;
@@ -74,6 +76,7 @@ import org.truffleruby.language.dispatch.DispatchNode;
 import org.truffleruby.language.globals.GlobalVariableStorage;
 import org.truffleruby.language.loader.CodeLoader;
 import org.truffleruby.language.loader.FeatureLoader;
+import org.truffleruby.language.methods.InternalMethod;
 import org.truffleruby.language.objects.shared.SharedObjects;
 import org.truffleruby.options.LanguageOptions;
 import org.truffleruby.options.Options;
@@ -528,6 +531,11 @@ public class RubyContext {
             RubyLanguage.LOGGER.info(
                     "Total VALUE object to native conversions: " + getValueWrapperManager().totalHandleAllocations());
         }
+
+        RubyLanguage.LOGGER.info("Optimizable dynamic keyword arg calls: " + InternalMethod.optimizableCallCounter.get());
+        RubyLanguage.LOGGER.info("Total dynamic keyword arg calls: " + InternalMethod.dynamicCallCounter.get());
+        final int percentOptimizable = (InternalMethod.optimizableCallCounter.intValue() * 100) / InternalMethod.dynamicCallCounter.intValue();
+        RubyLanguage.LOGGER.info("Percent Optimizable: " + percentOptimizable + "%");
     }
 
     public boolean isPreInitializing() {
