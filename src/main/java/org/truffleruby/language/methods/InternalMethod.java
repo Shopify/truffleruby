@@ -54,8 +54,9 @@ public class InternalMethod implements ObjectGraphNode {
     @CompilationFinal private RootCallTarget callTarget;
     private final Object capturedBlock;
 
-    public static AtomicLong dynamicCallCounter = new AtomicLong();
-    public static AtomicLong optimizableCallCounter = new AtomicLong();
+    public static AtomicLong dynamicMethodCallCounter = new AtomicLong();
+    public static AtomicLong dynamicKeywordArgumentMethodCallCounter = new AtomicLong();
+    public static AtomicLong optimizableMethodCallCounter = new AtomicLong();
 
     public static InternalMethod fromProc(
             RubyContext context,

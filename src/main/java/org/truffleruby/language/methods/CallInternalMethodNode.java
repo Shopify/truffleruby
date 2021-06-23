@@ -74,10 +74,14 @@ public abstract class CallInternalMethodNode extends RubyBaseNode {
 
     @TruffleBoundary
     private static void logCall(InternalMethod method) {
-        InternalMethod.dynamicCallCounter.incrementAndGet();
+        InternalMethod.dynamicMethodCallCounter.incrementAndGet();
+
+        if (method.getSharedMethodInfo().getArity().hasKeywords()) {
+            InternalMethod.dynamicKeywordArgumentMethodCallCounter.incrementAndGet();
+        }
 
         if (method.getSharedMethodInfo().getArity().isKeywordArgumentOptimizable()) {
-            InternalMethod.optimizableCallCounter.incrementAndGet();
+            InternalMethod.optimizableMethodCallCounter.incrementAndGet();
         }
     }
 

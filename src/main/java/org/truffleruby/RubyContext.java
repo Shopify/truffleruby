@@ -532,10 +532,17 @@ public class RubyContext {
                     "Total VALUE object to native conversions: " + getValueWrapperManager().totalHandleAllocations());
         }
 
-        RubyLanguage.LOGGER.info("Optimizable dynamic keyword arg calls: " + InternalMethod.optimizableCallCounter.get());
-        RubyLanguage.LOGGER.info("Total dynamic keyword arg calls: " + InternalMethod.dynamicCallCounter.get());
-        final int percentOptimizable = (InternalMethod.optimizableCallCounter.intValue() * 100) / InternalMethod.dynamicCallCounter.intValue();
-        RubyLanguage.LOGGER.info("Percent Optimizable: " + percentOptimizable + "%");
+        RubyLanguage.LOGGER.info("Optimizable method calls: " + InternalMethod.optimizableMethodCallCounter.get());
+        RubyLanguage.LOGGER.info("Method calls with keyword arguments: " + InternalMethod.dynamicKeywordArgumentMethodCallCounter.get());
+        RubyLanguage.LOGGER.info("Total method calls: " + InternalMethod.dynamicMethodCallCounter.get());
+
+        final int percentMethodCallsWithKwArgsOptimizable = (InternalMethod.optimizableMethodCallCounter.intValue() * 100) /
+                InternalMethod.dynamicKeywordArgumentMethodCallCounter.intValue();
+        final int percentMethodCallsOptimizable = (InternalMethod.optimizableMethodCallCounter.intValue() * 100) /
+                InternalMethod.dynamicMethodCallCounter.intValue();
+
+        RubyLanguage.LOGGER.info("Percent Keyword Args Method Calls Optimizable: " + percentMethodCallsWithKwArgsOptimizable + "%");
+        RubyLanguage.LOGGER.info("Percent Method Calls Optimizable: " + percentMethodCallsOptimizable + "%");
     }
 
     public boolean isPreInitializing() {
