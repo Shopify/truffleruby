@@ -36,16 +36,7 @@ end
 
 obj_a = A.new
 obj_b = B.new
-
-def obj_a_or_b
-  x = Random.new
-  case x.rand(2)
-  when 0
-    A.new
-  when 1
-    B.new
-  end
-end
+random = Random.new
 
 Benchmark.ips do |x|
   x.report('Monomorphic, keyword with default args') do
@@ -62,15 +53,15 @@ Benchmark.ips do |x|
   end
 
   x.report('Polymorphic, keyword with default args') do
-    obj_a_or_b.keyword_with_defaults
+    (random.rand(2) == 0 ? A.new : B.new).keyword_with_defaults
   end
 
   x.report('Polymorphic, keyword without default args') do
-    obj_a_or_b.keyword_without_defaults(a: 1, b: 2, c: 3, d: 4, e: 5, 
+    (random.rand(2) == 0 ? A.new : B.new).keyword_without_defaults(a: 1, b: 2, c: 3, d: 4, e: 5, 
       f: 6, g: 7, h: 8, i: 9, j: 10)
   end
 
   x.report('Polymorphic, positional without default args') do
-    obj_a_or_b.positional_without_defaults(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    (random.rand(2) == 0 ? A.new : B.new).positional_without_defaults(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
   end
 end
