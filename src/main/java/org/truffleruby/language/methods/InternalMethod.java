@@ -10,6 +10,7 @@
 package org.truffleruby.language.methods;
 
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
@@ -52,6 +53,10 @@ public class InternalMethod implements ObjectGraphNode {
     private final CachedSupplier<RootCallTarget> callTargetSupplier;
     @CompilationFinal private RootCallTarget callTarget;
     private final Object capturedBlock;
+
+    public static AtomicLong dynamicMethodCallCounter = new AtomicLong();
+    public static AtomicLong dynamicKeywordArgumentMethodCallCounter = new AtomicLong();
+    public static AtomicLong optimizableMethodCallCounter = new AtomicLong();
 
     public static InternalMethod fromProc(
             RubyContext context,

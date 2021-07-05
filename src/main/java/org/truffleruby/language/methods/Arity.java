@@ -152,6 +152,10 @@ public final class Arity {
         return keywordArguments;
     }
 
+    public boolean isKeywordArgumentOptimizable() {
+        return hasKeywords() && !hasKeywordsRest();
+    }
+
     public ArgumentDescriptor[] toAnonymousArgumentDescriptors() {
         List<ArgumentDescriptor> descs = new ArrayList<>();
 
