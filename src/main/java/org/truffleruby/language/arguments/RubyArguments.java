@@ -11,6 +11,9 @@ package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import org.truffleruby.core.array.ArrayUtils;
+import org.truffleruby.core.hash.Entry;
+import org.truffleruby.core.hash.RubyHash;
+import org.truffleruby.core.hash.library.PackedHashStoreLibrary;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.FrameAndVariables;
@@ -34,7 +37,8 @@ public final class RubyArguments {
         DECLARATION_CONTEXT, // 3
         FRAME_ON_STACK_MARKER, // 4
         SELF, // 5
-        BLOCK // 6
+        BLOCK, // 6
+        KW_ARGS_OPTIMIZABLE_FLAG // 7
     }
 
     private static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
@@ -70,6 +74,27 @@ public final class RubyArguments {
             Object[] arguments) {
         assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, arguments);
 
+        // Default is empty string
+        String flattenArgumentsFlag = "";
+
+        // We need to know the final array length to create the `packed` array
+        if (method.getSharedMethodInfo().getArity().isKeywordArgumentOptimizable()) {
+
+            // Sometimes the argument is empty, and not a RubyHash instance
+            if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
+
+                // Flatten the arguments hash and reassign to `arguments`
+                RubyHash extractedArguments = (RubyHash) arguments[0];
+                arguments = flattenArguments(extractedArguments);
+
+                if (extractedArguments.firstInSequence != null) {
+                    flattenArgumentsFlag = "GenericHash";
+                } else {
+                    flattenArgumentsFlag = "PackedHash";
+                    }
+                }
+            }
+
         final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
 
         packed[ArgumentIndicies.DECLARATION_FRAME.ordinal()] = declarationFrame;
@@ -80,9 +105,36 @@ public final class RubyArguments {
         packed[ArgumentIndicies.SELF.ordinal()] = self;
         packed[ArgumentIndicies.BLOCK.ordinal()] = block;
 
+        // TODO: We need to somehow set it to a unique keyword arg signature, for now it's
+        //  a String describing the type of Hash
+        packed[ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()] = flattenArgumentsFlag;
+
+        // Copy arguments into `packed`, with the correct `packed` size
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
 
         return packed;
+    }
+
+    private static Object[] flattenArguments(RubyHash arguments) {
+        // There are 2 types of Hashes: Packed hashes (small), Generic hashes
+        // Packed hashes does not have `firstInSequence`, while Generic hashes do
+        if (arguments.firstInSequence != null) {
+            Entry entry = arguments.firstInSequence;
+            Object[] flattenedArguments = new Object[arguments.size * 2]; // Twice the size to store both keys & values
+            int i = 0;
+            while (entry != null) {
+                flattenedArguments[i] = entry.getKey();
+                flattenedArguments[i+1] = entry.getValue();
+                entry = entry.getNextInSequence();
+                i += 2;
+            }
+            return flattenedArguments;
+        } else {
+            final Object[] store = (Object[]) arguments.store;
+            final Object[] copied = PackedHashStoreLibrary.createStore();
+            System.arraycopy(store, 0, copied, 0, store.length); // store length to fit all the arguments (not sure ifcorrect)
+            return copied;
+        }
     }
 
     public static boolean assertValues(
@@ -169,7 +221,23 @@ public final class RubyArguments {
     }
 
     public static int getArgumentsCount(Frame frame) {
-        return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
+        // We need to return the correct argument count for flattened arguments, since it's an array now
+        if (isKeyWordArgsOptimizable(frame)) {
+            return (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT) / 3;
+        } else {
+            return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
+        }
+    }
+
+    public static boolean isKeyWordArgsOptimizable(Frame frame) {
+        if (flattenedHashType(frame).isEmpty()) {
+            return false;
+        }
+        return true;
+    }
+
+    public static String flattenedHashType(Frame frame) {
+        return (String) frame.getArguments()[ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()];
     }
 
     public static Object getArgument(Frame frame, int index) {

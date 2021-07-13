@@ -49,8 +49,18 @@ public class CheckKeywordArityNode extends RubyBaseNode {
 
         final RubyHash keywordArguments = readUserKeywordsHashNode.execute(frame);
 
-        final int argumentsCount = RubyArguments.getArgumentsCount(frame);
+        int argumentsCount = RubyArguments.getArgumentsCount(frame);
         int given = argumentsCount;
+
+        if (RubyArguments.isKeyWordArgsOptimizable(frame)) {
+            if (RubyArguments.flattenedHashType(frame) == "PackedHash") {
+                given = RubyArguments.getArgumentsCount(frame) / 3;
+                argumentsCount = given / 3;
+            } else if (RubyArguments.flattenedHashType(frame) == "GenericHash") {
+                given = RubyArguments.getArgumentsCount(frame) / 2;
+            }
+            argumentsCount = given;
+        }
 
         if (keywordArguments != null) {
             receivedKeywordsProfile.enter();
