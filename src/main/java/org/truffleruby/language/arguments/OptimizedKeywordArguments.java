@@ -23,22 +23,40 @@ import org.truffleruby.language.methods.Arity;
 
 public class OptimizedKeywordArguments {
 
+    // Logic for saying if the optimization applies
+
     public static boolean isKeywordArgumentOptimizable(Arity arity) {
         return arity.hasKeywords() && !arity.hasKeywordsRest();
     }
 
     public static boolean isKeyWordArgsOptimizable(Frame frame) {
-        if (flattenedHashType(frame).isEmpty()) {
-            return false;
+        return flattenedHashType(frame).isEmpty();
+    }
+
+    // Logic for packing
+
+    public static Object[] packOptimizedArguments(Object[] arguments, Memo<String> flattenArgumentsFlagMemo) {
+        // Sometimes the argument is empty, and not a RubyHash instance
+        if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
+
+            // Flatten the arguments hash and reassign to `arguments`
+            RubyHash extractedArguments = (RubyHash) arguments[0];
+            arguments = flattenArguments(extractedArguments);
+
+            if (extractedArguments.firstInSequence != null) {
+                flattenArgumentsFlagMemo.set("GenericHash");
+            } else {
+                flattenArgumentsFlagMemo.set("PackedHash");
+            }
+
+            return arguments;
+        } else {
+            flattenArgumentsFlagMemo.set("");
+            return arguments;
         }
-        return true;
     }
 
-    public static String flattenedHashType(Frame frame) {
-        return (String) frame.getArguments()[RubyArguments.ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()];
-    }
-
-    public static Object[] flattenArguments(RubyHash arguments) {
+    private static Object[] flattenArguments(RubyHash arguments) {
         // There are 2 types of Hashes: Packed hashes (small), Generic hashes
         // Packed hashes does not have `firstInSequence`, while Generic hashes do
         if (arguments.firstInSequence != null) {
@@ -60,7 +78,36 @@ public class OptimizedKeywordArguments {
         }
     }
 
-    static RubyHash reconstructArgumentHash(String hashType, Object[] flattenedArguments) {
+    // Logic for unpacking
+
+    public static String flattenedHashType(Frame frame) {
+        return (String) frame.getArguments()[RubyArguments.ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()];
+    }
+
+    public static int getOptimizedArgumentsCount(Frame frame) {
+        return (frame.getArguments().length - RubyArguments.RUNTIME_ARGUMENT_COUNT) / 3;
+    }
+
+    public static Object reconstructHash(VirtualFrame frame) {
+        Object lastArgument;
+        Object[] flattenedArguments = RubyArguments.getArguments(frame);
+        String hashType = flattenedHashType(frame);
+        lastArgument = reconstructArgumentHash(hashType, flattenedArguments);
+        return lastArgument;
+    }
+
+    public static void actualNumberOfArguments(VirtualFrame frame, Memo<Integer> givenMemo, Memo<Integer> argumentsCountMemo) {
+        if (flattenedHashType(frame) == "PackedHash") {
+            givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
+            argumentsCountMemo.set(givenMemo.get() / 3);
+        } else if (flattenedHashType(frame) == "GenericHash") {
+            argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
+        }
+        argumentsCountMemo.set(givenMemo.get());
+    }
+
+
+    public static RubyHash reconstructArgumentHash(String hashType, Object[] flattenedArguments) {
         assert !hashType.isEmpty();
 
         if (hashType == "PackedHash") {
@@ -111,46 +158,4 @@ public class OptimizedKeywordArguments {
         }
     }
 
-    public static int getOptimizedArgumentsCount(Frame frame) {
-        return (frame.getArguments().length - RubyArguments.RUNTIME_ARGUMENT_COUNT) / 3;
-    }
-
-    public static Object reconstructHash(VirtualFrame frame) {
-        Object lastArgument;
-        Object[] flattenedArguments = RubyArguments.getArguments(frame);
-        String hashType = flattenedHashType(frame);
-        lastArgument = reconstructArgumentHash(hashType, flattenedArguments);
-        return lastArgument;
-    }
-
-    static Object[] packOptimizedArguments(Object[] arguments, Memo<String> flattenArgumentsFlagMemo) {
-        // Sometimes the argument is empty, and not a RubyHash instance
-        if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
-
-            // Flatten the arguments hash and reassign to `arguments`
-            RubyHash extractedArguments = (RubyHash) arguments[0];
-            arguments = flattenArguments(extractedArguments);
-
-            if (extractedArguments.firstInSequence != null) {
-                flattenArgumentsFlagMemo.set("GenericHash");
-            } else {
-                flattenArgumentsFlagMemo.set("PackedHash");
-            }
-
-            return arguments;
-        } else {
-            flattenArgumentsFlagMemo.set("");
-            return arguments;
-        }
-    }
-
-    static void actualNumberOfArguments(VirtualFrame frame, Memo<Integer> givenMemo, Memo<Integer> argumentsCountMemo) {
-        if (flattenedHashType(frame) == "PackedHash") {
-            givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
-            argumentsCountMemo.set(givenMemo.get() / 3);
-        } else if (flattenedHashType(frame) == "GenericHash") {
-            argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
-        }
-        argumentsCountMemo.set(givenMemo.get());
-    }
 }
