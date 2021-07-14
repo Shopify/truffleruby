@@ -11,9 +11,7 @@ package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import org.truffleruby.core.array.ArrayUtils;
-import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.RubyHash;
-import org.truffleruby.core.hash.library.PackedHashStoreLibrary;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.FrameAndVariables;
@@ -30,7 +28,7 @@ import com.oracle.truffle.api.nodes.ExplodeLoop;
 
 public final class RubyArguments {
 
-    private enum ArgumentIndicies {
+    public enum ArgumentIndicies {
         DECLARATION_FRAME, // 0
         CALLER_FRAME_OR_VARIABLES, // 1
         METHOD, // 2
@@ -78,14 +76,14 @@ public final class RubyArguments {
         String flattenArgumentsFlag = "";
 
         // We need to know the final array length to create the `packed` array
-        if (method.getSharedMethodInfo().getArity().isKeywordArgumentOptimizable()) {
+        if (OptimizedKeywordArguments.isKeywordArgumentOptimizable(method.getSharedMethodInfo().getArity())) {
 
             // Sometimes the argument is empty, and not a RubyHash instance
             if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
 
                 // Flatten the arguments hash and reassign to `arguments`
                 RubyHash extractedArguments = (RubyHash) arguments[0];
-                arguments = flattenArguments(extractedArguments);
+                arguments = OptimizedKeywordArguments.flattenArguments(extractedArguments);
 
                 if (extractedArguments.firstInSequence != null) {
                     flattenArgumentsFlag = "GenericHash";
@@ -113,28 +111,6 @@ public final class RubyArguments {
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
 
         return packed;
-    }
-
-    private static Object[] flattenArguments(RubyHash arguments) {
-        // There are 2 types of Hashes: Packed hashes (small), Generic hashes
-        // Packed hashes does not have `firstInSequence`, while Generic hashes do
-        if (arguments.firstInSequence != null) {
-            Entry entry = arguments.firstInSequence;
-            Object[] flattenedArguments = new Object[arguments.size * 2]; // Twice the size to store both keys & values
-            int i = 0;
-            while (entry != null) {
-                flattenedArguments[i] = entry.getKey();
-                flattenedArguments[i+1] = entry.getValue();
-                entry = entry.getNextInSequence();
-                i += 2;
-            }
-            return flattenedArguments;
-        } else {
-            final Object[] store = (Object[]) arguments.store;
-            final Object[] copied = PackedHashStoreLibrary.createStore();
-            System.arraycopy(store, 0, copied, 0, store.length); // store length to fit all the arguments (not sure ifcorrect)
-            return copied;
-        }
     }
 
     public static boolean assertValues(
@@ -222,22 +198,11 @@ public final class RubyArguments {
 
     public static int getArgumentsCount(Frame frame) {
         // We need to return the correct argument count for flattened arguments, since it's an array now
-        if (isKeyWordArgsOptimizable(frame)) {
+        if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
             return (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT) / 3;
         } else {
             return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
         }
-    }
-
-    public static boolean isKeyWordArgsOptimizable(Frame frame) {
-        if (flattenedHashType(frame).isEmpty()) {
-            return false;
-        }
-        return true;
-    }
-
-    public static String flattenedHashType(Frame frame) {
-        return (String) frame.getArguments()[ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()];
     }
 
     public static Object getArgument(Frame frame, int index) {

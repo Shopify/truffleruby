@@ -9,12 +9,7 @@
  */
 package org.truffleruby.language.arguments;
 
-import org.truffleruby.RubyLanguage;
-import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.RubyHash;
-import org.truffleruby.core.hash.library.BucketsHashStore;
-import org.truffleruby.core.hash.library.HashStoreLibrary;
-import org.truffleruby.core.hash.library.PackedHashStoreLibrary;
 import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.dispatch.DispatchNode;
@@ -50,67 +45,16 @@ public final class ReadUserKeywordsHashNode extends RubyBaseNode {
         Object lastArgument = RubyArguments.getArgument(frame, argumentCount - 1);
 
         // If we're reading a flattened hash, reconstruct the hash
-        if (RubyArguments.isKeyWordArgsOptimizable(frame)) {
+        if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
             Object[] flattenedArguments = RubyArguments.getArguments(frame);
-            String hashType = RubyArguments.flattenedHashType(frame);
-            lastArgument = reconstructArgumentHash(hashType, flattenedArguments);
+            String hashType = OptimizedKeywordArguments.flattenedHashType(frame);
+            lastArgument = OptimizedKeywordArguments.reconstructArgumentHash(hashType, flattenedArguments);
         }
 
         if (lastArgumentIsHashProfile.profile(RubyGuards.isRubyHash(lastArgument))) {
             return (RubyHash) lastArgument;
         } else {
             return tryConvertToHash(frame, argumentCount, lastArgument);
-        }
-    }
-
-    private RubyHash reconstructArgumentHash(String hashType, Object[] flattenedArguments) {
-        assert !hashType.isEmpty();
-
-        if (hashType == "PackedHash") {
-            final Object[] store = PackedHashStoreLibrary.createStore();
-            for (int n = 0; n < flattenedArguments.length; n += 3) {
-                // I'm not sure why but sometimes there are null elements
-                // at the end of the `flattenedArguments` array
-                if (flattenedArguments[n] == null) {
-                    break;
-                }
-                PackedHashStoreLibrary.setHashedKeyValue(store, n / 3, (Integer) flattenedArguments[n], flattenedArguments[n + 1], flattenedArguments[n + 2]);
-            }
-            return new RubyHash(
-                    RubyLanguage.getCurrentContext().getCoreLibrary().hashClass,
-                    RubyLanguage.getCurrentLanguage().hashShape,
-                    RubyLanguage.getCurrentContext(),
-                    store,
-                    flattenedArguments.length / 3,
-                    null,
-                    null,
-                    nil,
-                    nil,
-                    false);
-        }
-
-        if (hashType == "GenericHash") {
-            HashStoreLibrary hashes = insert(HashStoreLibrary.createDispatched());
-            BucketsHashStore bucket = new BucketsHashStore(new Entry[flattenedArguments.length / 2 * 4]);
-            final RubyHash rubyHash = new RubyHash(
-                    RubyLanguage.getCurrentContext().getCoreLibrary().hashClass,
-                    RubyLanguage.getCurrentLanguage().hashShape,
-                    RubyLanguage.getCurrentContext(),
-                    bucket,
-                    flattenedArguments.length / 2,
-                    null,
-                    null,
-                    nil,
-                    nil,
-                    false);
-            for (int n = 0; n < flattenedArguments.length; n += 2) {
-                final Object key = flattenedArguments[n];
-                final Object value = flattenedArguments[n + 1];
-                hashes.set(rubyHash.store, rubyHash, key, value, false);
-            }
-            return rubyHash;
-        } else {
-            return null;
         }
     }
 

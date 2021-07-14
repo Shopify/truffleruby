@@ -52,11 +52,11 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         int argumentsCount = RubyArguments.getArgumentsCount(frame);
         int given = argumentsCount;
 
-        if (RubyArguments.isKeyWordArgsOptimizable(frame)) {
-            if (RubyArguments.flattenedHashType(frame) == "PackedHash") {
+        if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
+            if (OptimizedKeywordArguments.flattenedHashType(frame) == "PackedHash") {
                 given = RubyArguments.getArgumentsCount(frame) / 3;
                 argumentsCount = given / 3;
-            } else if (RubyArguments.flattenedHashType(frame) == "GenericHash") {
+            } else if (OptimizedKeywordArguments.flattenedHashType(frame) == "GenericHash") {
                 given = RubyArguments.getArgumentsCount(frame) / 2;
             }
             argumentsCount = given;
