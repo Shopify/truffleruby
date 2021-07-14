@@ -52,6 +52,10 @@ public abstract class HashStoreLibrary extends Library {
         return FACTORY.createDispatched(HashGuards.hashStrategyLimit());
     }
 
+    public static HashStoreLibrary getUncached() {
+        return FACTORY.getUncached();
+    }
+
     public static boolean verify(RubyHash hash) {
         final Object store = hash.store;
         return FACTORY.getUncached(store).verify(store, hash);

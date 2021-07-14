@@ -10,6 +10,7 @@
 package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
+import org.truffleruby.collections.Memo;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.core.string.StringUtils;
@@ -27,17 +28,18 @@ import com.oracle.truffle.api.nodes.ExplodeLoop;
 
 public final class RubyArguments {
 
-    private enum ArgumentIndicies {
+    public enum ArgumentIndicies {
         DECLARATION_FRAME, // 0
         CALLER_FRAME_OR_VARIABLES, // 1
         METHOD, // 2
         DECLARATION_CONTEXT, // 3
         FRAME_ON_STACK_MARKER, // 4
         SELF, // 5
-        BLOCK // 6
+        BLOCK, // 6
+        CALLING_CONVENTION // 7
     }
 
-    private static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
+    public static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
 
     /** In most cases the DeclarationContext is the one of the InternalMethod. */
     public static Object[] pack(
@@ -70,6 +72,16 @@ public final class RubyArguments {
             Object[] arguments) {
         assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, arguments);
 
+        // Default is empty string
+        OptimizedKeywordArguments.CallingConvention callingConvention = OptimizedKeywordArguments.CallingConvention.UNOPTIMIZED;
+
+        // We need to know the final array length to create the `packed` array
+        if (OptimizedKeywordArguments.canArityUseOptimizedCallingConvention(method.getSharedMethodInfo().getArity())) {
+            final Memo<OptimizedKeywordArguments.CallingConvention> flattenArgumentsFlagMemo = new Memo<>(callingConvention);
+            arguments = OptimizedKeywordArguments.packOptimizedArguments(arguments, flattenArgumentsFlagMemo);
+            callingConvention = flattenArgumentsFlagMemo.get();
+        }
+
         final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
 
         packed[ArgumentIndicies.DECLARATION_FRAME.ordinal()] = declarationFrame;
@@ -80,6 +92,11 @@ public final class RubyArguments {
         packed[ArgumentIndicies.SELF.ordinal()] = self;
         packed[ArgumentIndicies.BLOCK.ordinal()] = block;
 
+        // TODO: We need to somehow set it to a unique keyword arg signature, for now it's
+        //  a String describing the type of Hash
+        packed[ArgumentIndicies.CALLING_CONVENTION.ordinal()] = callingConvention;
+
+        // Copy arguments into `packed`, with the correct `packed` size
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
 
         return packed;
@@ -169,12 +186,20 @@ public final class RubyArguments {
     }
 
     public static int getArgumentsCount(Frame frame) {
-        return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
+        if (OptimizedKeywordArguments.doesFrameContainOptimizedKeywordArguments(frame)) {
+            return OptimizedKeywordArguments.numberOfGivenArguments(frame);
+        } else {
+            return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
+        }
     }
 
     public static Object getArgument(Frame frame, int index) {
         assert index >= 0 && index < (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT);
         return frame.getArguments()[RUNTIME_ARGUMENT_COUNT + index];
+    }
+
+    public static OptimizedKeywordArguments.CallingConvention getCallingConvention(Frame frame) {
+        return (OptimizedKeywordArguments.CallingConvention) frame.getArguments()[RubyArguments.ArgumentIndicies.CALLING_CONVENTION.ordinal()];
     }
 
     public static Object[] getArguments(Frame frame) {
