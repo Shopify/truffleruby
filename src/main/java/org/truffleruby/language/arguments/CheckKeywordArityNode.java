@@ -53,7 +53,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         int argumentsCount = RubyArguments.getArgumentsCount(frame);
         int given = argumentsCount;
 
-        if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
+        if (OptimizedKeywordArguments.doesFrameContainOptimizedKeywordArguments(frame)) {
             final Memo<Integer> givenMemo = new Memo<>(0);
             final Memo<Integer> argumentsCountMemo = new Memo<>(0);
             OptimizedKeywordArguments.actualNumberOfArguments(frame, givenMemo, argumentsCountMemo);

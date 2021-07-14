@@ -45,8 +45,8 @@ public final class ReadUserKeywordsHashNode extends RubyBaseNode {
         Object lastArgument = RubyArguments.getArgument(frame, argumentCount - 1);
 
         // If we're reading a flattened hash, reconstruct the hash
-        if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
-            lastArgument = OptimizedKeywordArguments.reconstructHash(frame);
+        if (OptimizedKeywordArguments.doesFrameContainOptimizedKeywordArguments(frame)) {
+            lastArgument = OptimizedKeywordArguments.unpackOptimizedKeywordArguments(frame);
         }
 
         if (lastArgumentIsHashProfile.profile(RubyGuards.isRubyHash(lastArgument))) {

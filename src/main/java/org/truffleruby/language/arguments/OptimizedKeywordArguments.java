@@ -9,6 +9,7 @@
  */
 package org.truffleruby.language.arguments;
 
+import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import org.truffleruby.RubyLanguage;
@@ -23,6 +24,18 @@ import org.truffleruby.language.methods.Arity;
 
 public class OptimizedKeywordArguments {
 
+    /**
+     * Normally we pass keyword arguments in a hash that is passed as the last user argument.
+     *
+     *     arg0, arg1, arg2, ..., kwHash
+     *
+     * In this optimized version, we pass keyword argument pairs in the argument array, after user argumnents.
+     *
+     *     arg0, arg1, arg2, ..., key0, value0, key1, value1, key2, value2, ...
+     *
+     * To mark
+     */
+
     public enum CallingConvention {
         UNOPTIMIZED,
         OPTIMIZED_GENERIC,
@@ -31,15 +44,30 @@ public class OptimizedKeywordArguments {
 
     // Logic for saying if the optimization applies
 
-    public static boolean isKeywordArgumentOptimizable(Arity arity) {
+    public static boolean canArityUseOptimizedCallingConvention(Arity arity) {
         return arity.hasKeywords() && !arity.hasKeywordsRest();
     }
 
-    public static boolean isKeyWordArgsOptimizable(Frame frame) {
-        return RubyArguments.getCallingConvention(frame) == CallingConvention.UNOPTIMIZED;
+    public static boolean doesFrameContainOptimizedKeywordArguments(Frame frame) {
+        return RubyArguments.getCallingConvention(frame) != CallingConvention.UNOPTIMIZED;
     }
 
     // Logic for packing
+
+    public static int numberOfGivenArguments(Frame frame) {
+        final int extra = frame.getArguments().length - RubyArguments.RUNTIME_ARGUMENT_COUNT ;
+
+        switch (RubyArguments.getCallingConvention(frame)) {
+            case OPTIMIZED_PACKED:
+                return extra / 3;
+
+            case OPTIMIZED_GENERIC:
+                return extra / 2;
+
+            default:
+                return extra;
+        }
+    }
 
     public static Object[] packOptimizedArguments(Object[] arguments, Memo<CallingConvention> flattenArgumentsFlagMemo) {
         // Sometimes the argument is empty, and not a RubyHash instance
@@ -47,7 +75,27 @@ public class OptimizedKeywordArguments {
 
             // Flatten the arguments hash and reassign to `arguments`
             RubyHash extractedArguments = (RubyHash) arguments[0];
-            arguments = flattenArguments(extractedArguments);
+            Object[] result;
+            // There are 2 types of Hashes: Packed hashes (small), Generic hashes
+            // Packed hashes does not have `firstInSequence`, while Generic hashes do
+            if (extractedArguments.firstInSequence != null) {
+                Entry entry = extractedArguments.firstInSequence;
+                Object[] flattenedArguments = new Object[extractedArguments.size * 2]; // Twice the size to store both keys & values
+                int i = 0;
+                while (entry != null) {
+                    flattenedArguments[i] = entry.getKey();
+                    flattenedArguments[i+1] = entry.getValue();
+                    entry = entry.getNextInSequence();
+                    i += 2;
+                }
+                result = flattenedArguments;
+            } else {
+                final Object[] store = (Object[]) extractedArguments.store;
+                final Object[] copied = PackedHashStoreLibrary.createStore();
+                System.arraycopy(store, 0, copied, 0, store.length); // store length to fit all the arguments (not sure ifcorrect)
+                result = copied;
+            }
+            arguments = result;
 
             if (extractedArguments.firstInSequence != null) {
                 flattenArgumentsFlagMemo.set(CallingConvention.OPTIMIZED_GENERIC);
@@ -62,61 +110,12 @@ public class OptimizedKeywordArguments {
         }
     }
 
-    private static Object[] flattenArguments(RubyHash arguments) {
-        // There are 2 types of Hashes: Packed hashes (small), Generic hashes
-        // Packed hashes does not have `firstInSequence`, while Generic hashes do
-        if (arguments.firstInSequence != null) {
-            Entry entry = arguments.firstInSequence;
-            Object[] flattenedArguments = new Object[arguments.size * 2]; // Twice the size to store both keys & values
-            int i = 0;
-            while (entry != null) {
-                flattenedArguments[i] = entry.getKey();
-                flattenedArguments[i+1] = entry.getValue();
-                entry = entry.getNextInSequence();
-                i += 2;
-            }
-            return flattenedArguments;
-        } else {
-            final Object[] store = (Object[]) arguments.store;
-            final Object[] copied = PackedHashStoreLibrary.createStore();
-            System.arraycopy(store, 0, copied, 0, store.length); // store length to fit all the arguments (not sure ifcorrect)
-            return copied;
-        }
-    }
-
     // Logic for unpacking
 
-    public static int getOptimizedArgumentsCount(Frame frame) {
-        return (frame.getArguments().length - RubyArguments.RUNTIME_ARGUMENT_COUNT) / 3;
-    }
-
-    public static Object reconstructHash(VirtualFrame frame) {
-        Object lastArgument;
-        Object[] flattenedArguments = RubyArguments.getArguments(frame);
+    public static RubyHash unpackOptimizedKeywordArguments(VirtualFrame frame) {
+        assert doesFrameContainOptimizedKeywordArguments(frame);
         CallingConvention callingConvention = RubyArguments.getCallingConvention(frame);
-        lastArgument = reconstructArgumentHash(callingConvention, flattenedArguments);
-        return lastArgument;
-    }
-
-    public static void actualNumberOfArguments(VirtualFrame frame, Memo<Integer> givenMemo, Memo<Integer> argumentsCountMemo) {
-        switch (RubyArguments.getCallingConvention(frame)) {
-            case OPTIMIZED_PACKED:
-                givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
-                argumentsCountMemo.set(givenMemo.get() / 3);
-                return;
-
-            case OPTIMIZED_GENERIC:
-                argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
-                return;
-
-            default:
-                argumentsCountMemo.set(givenMemo.get());
-                return;
-        }
-    }
-
-
-    public static RubyHash reconstructArgumentHash(CallingConvention callingConvention, Object[] flattenedArguments) {
+        Object[] flattenedArguments = RubyArguments.getArguments(frame);
         switch (callingConvention) {
             case OPTIMIZED_PACKED:
                 final Object[] store = PackedHashStoreLibrary.createStore();
@@ -162,7 +161,24 @@ public class OptimizedKeywordArguments {
                 return rubyHash;
 
             default:
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException(callingConvention.toString());
+        }
+    }
+
+    public static void actualNumberOfArguments(VirtualFrame frame, Memo<Integer> givenMemo, Memo<Integer> argumentsCountMemo) {
+        switch (RubyArguments.getCallingConvention(frame)) {
+            case OPTIMIZED_PACKED:
+                givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
+                argumentsCountMemo.set(givenMemo.get() / 3);
+                return;
+
+            case OPTIMIZED_GENERIC:
+                argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
+                return;
+
+            default:
+                argumentsCountMemo.set(givenMemo.get());
+                return;
         }
     }
 

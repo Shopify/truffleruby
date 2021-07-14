@@ -76,7 +76,7 @@ public final class RubyArguments {
         OptimizedKeywordArguments.CallingConvention callingConvention = OptimizedKeywordArguments.CallingConvention.UNOPTIMIZED;
 
         // We need to know the final array length to create the `packed` array
-        if (OptimizedKeywordArguments.isKeywordArgumentOptimizable(method.getSharedMethodInfo().getArity())) {
+        if (OptimizedKeywordArguments.canArityUseOptimizedCallingConvention(method.getSharedMethodInfo().getArity())) {
             final Memo<OptimizedKeywordArguments.CallingConvention> flattenArgumentsFlagMemo = new Memo<>(callingConvention);
             arguments = OptimizedKeywordArguments.packOptimizedArguments(arguments, flattenArgumentsFlagMemo);
             callingConvention = flattenArgumentsFlagMemo.get();
@@ -186,9 +186,8 @@ public final class RubyArguments {
     }
 
     public static int getArgumentsCount(Frame frame) {
-        // We need to return the correct argument count for flattened arguments, since it's an array now
-        if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
-            return OptimizedKeywordArguments.getOptimizedArgumentsCount(frame);
+        if (OptimizedKeywordArguments.doesFrameContainOptimizedKeywordArguments(frame)) {
+            return OptimizedKeywordArguments.numberOfGivenArguments(frame);
         } else {
             return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
         }
