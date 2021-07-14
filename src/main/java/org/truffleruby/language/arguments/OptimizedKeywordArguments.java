@@ -143,4 +143,14 @@ public class OptimizedKeywordArguments {
             return arguments;
         }
     }
+
+    static void actualNumberOfArguments(VirtualFrame frame, Memo<Integer> givenMemo, Memo<Integer> argumentsCountMemo) {
+        if (flattenedHashType(frame) == "PackedHash") {
+            givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
+            argumentsCountMemo.set(givenMemo.get() / 3);
+        } else if (flattenedHashType(frame) == "GenericHash") {
+            argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
+        }
+        argumentsCountMemo.set(givenMemo.get());
+    }
 }

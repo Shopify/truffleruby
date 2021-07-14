@@ -14,6 +14,7 @@ import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLanguage.ContextReference;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.collections.Memo;
 import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.hash.library.HashStoreLibrary;
 import org.truffleruby.core.hash.library.HashStoreLibrary.EachEntryCallback;
@@ -53,13 +54,11 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         int given = argumentsCount;
 
         if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
-            if (OptimizedKeywordArguments.flattenedHashType(frame) == "PackedHash") {
-                given = RubyArguments.getArgumentsCount(frame) / 3;
-                argumentsCount = given / 3;
-            } else if (OptimizedKeywordArguments.flattenedHashType(frame) == "GenericHash") {
-                given = RubyArguments.getArgumentsCount(frame) / 2;
-            }
-            argumentsCount = given;
+            final Memo<Integer> givenMemo = new Memo<>(0);
+            final Memo<Integer> argumentsCountMemo = new Memo<>(0);
+            OptimizedKeywordArguments.actualNumberOfArguments(frame, givenMemo, argumentsCountMemo);
+            given = givenMemo.get();
+            argumentsCount = argumentsCountMemo.get();
         }
 
         if (keywordArguments != null) {
