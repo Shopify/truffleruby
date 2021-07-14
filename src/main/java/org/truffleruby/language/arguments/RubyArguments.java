@@ -10,8 +10,8 @@
 package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
+import org.truffleruby.collections.Memo;
 import org.truffleruby.core.array.ArrayUtils;
-import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.FrameAndVariables;
@@ -39,7 +39,7 @@ public final class RubyArguments {
         KW_ARGS_OPTIMIZABLE_FLAG // 7
     }
 
-    private static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
+    public static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
 
     /** In most cases the DeclarationContext is the one of the InternalMethod. */
     public static Object[] pack(
@@ -77,21 +77,10 @@ public final class RubyArguments {
 
         // We need to know the final array length to create the `packed` array
         if (OptimizedKeywordArguments.isKeywordArgumentOptimizable(method.getSharedMethodInfo().getArity())) {
-
-            // Sometimes the argument is empty, and not a RubyHash instance
-            if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
-
-                // Flatten the arguments hash and reassign to `arguments`
-                RubyHash extractedArguments = (RubyHash) arguments[0];
-                arguments = OptimizedKeywordArguments.flattenArguments(extractedArguments);
-
-                if (extractedArguments.firstInSequence != null) {
-                    flattenArgumentsFlag = "GenericHash";
-                } else {
-                    flattenArgumentsFlag = "PackedHash";
-                    }
-                }
-            }
+            final Memo<String> flattenArgumentsFlagMemo = new Memo<>(flattenArgumentsFlag);
+            arguments = OptimizedKeywordArguments.packOptimizedArguments(arguments, flattenArgumentsFlagMemo);
+            flattenArgumentsFlag = flattenArgumentsFlagMemo.get();
+        }
 
         final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
 
@@ -199,7 +188,7 @@ public final class RubyArguments {
     public static int getArgumentsCount(Frame frame) {
         // We need to return the correct argument count for flattened arguments, since it's an array now
         if (OptimizedKeywordArguments.isKeyWordArgsOptimizable(frame)) {
-            return (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT) / 3;
+            return OptimizedKeywordArguments.getOptimizedArgumentsCount(frame);
         } else {
             return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
         }

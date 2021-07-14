@@ -10,7 +10,9 @@
 package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.frame.Frame;
+import com.oracle.truffle.api.frame.VirtualFrame;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.collections.Memo;
 import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.hash.library.BucketsHashStore;
@@ -106,6 +108,39 @@ public class OptimizedKeywordArguments {
             return rubyHash;
         } else {
             return null;
+        }
+    }
+
+    public static int getOptimizedArgumentsCount(Frame frame) {
+        return (frame.getArguments().length - RubyArguments.RUNTIME_ARGUMENT_COUNT) / 3;
+    }
+
+    public static Object reconstructHash(VirtualFrame frame) {
+        Object lastArgument;
+        Object[] flattenedArguments = RubyArguments.getArguments(frame);
+        String hashType = flattenedHashType(frame);
+        lastArgument = reconstructArgumentHash(hashType, flattenedArguments);
+        return lastArgument;
+    }
+
+    static Object[] packOptimizedArguments(Object[] arguments, Memo<String> flattenArgumentsFlagMemo) {
+        // Sometimes the argument is empty, and not a RubyHash instance
+        if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
+
+            // Flatten the arguments hash and reassign to `arguments`
+            RubyHash extractedArguments = (RubyHash) arguments[0];
+            arguments = flattenArguments(extractedArguments);
+
+            if (extractedArguments.firstInSequence != null) {
+                flattenArgumentsFlagMemo.set("GenericHash");
+            } else {
+                flattenArgumentsFlagMemo.set("PackedHash");
+            }
+
+            return arguments;
+        } else {
+            flattenArgumentsFlagMemo.set("");
+            return arguments;
         }
     }
 }
