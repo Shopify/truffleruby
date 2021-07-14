@@ -36,7 +36,7 @@ public final class RubyArguments {
         FRAME_ON_STACK_MARKER, // 4
         SELF, // 5
         BLOCK, // 6
-        KW_ARGS_OPTIMIZABLE_FLAG // 7
+        CALLING_CONVENTION // 7
     }
 
     public static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
@@ -73,13 +73,13 @@ public final class RubyArguments {
         assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, arguments);
 
         // Default is empty string
-        String flattenArgumentsFlag = "";
+        OptimizedKeywordArguments.CallingConvention callingConvention = OptimizedKeywordArguments.CallingConvention.UNOPTIMIZED;
 
         // We need to know the final array length to create the `packed` array
         if (OptimizedKeywordArguments.isKeywordArgumentOptimizable(method.getSharedMethodInfo().getArity())) {
-            final Memo<String> flattenArgumentsFlagMemo = new Memo<>(flattenArgumentsFlag);
+            final Memo<OptimizedKeywordArguments.CallingConvention> flattenArgumentsFlagMemo = new Memo<>(callingConvention);
             arguments = OptimizedKeywordArguments.packOptimizedArguments(arguments, flattenArgumentsFlagMemo);
-            flattenArgumentsFlag = flattenArgumentsFlagMemo.get();
+            callingConvention = flattenArgumentsFlagMemo.get();
         }
 
         final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
@@ -94,7 +94,7 @@ public final class RubyArguments {
 
         // TODO: We need to somehow set it to a unique keyword arg signature, for now it's
         //  a String describing the type of Hash
-        packed[ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()] = flattenArgumentsFlag;
+        packed[ArgumentIndicies.CALLING_CONVENTION.ordinal()] = callingConvention;
 
         // Copy arguments into `packed`, with the correct `packed` size
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
@@ -197,6 +197,10 @@ public final class RubyArguments {
     public static Object getArgument(Frame frame, int index) {
         assert index >= 0 && index < (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT);
         return frame.getArguments()[RUNTIME_ARGUMENT_COUNT + index];
+    }
+
+    public static OptimizedKeywordArguments.CallingConvention getCallingConvention(Frame frame) {
+        return (OptimizedKeywordArguments.CallingConvention) frame.getArguments()[RubyArguments.ArgumentIndicies.CALLING_CONVENTION.ordinal()];
     }
 
     public static Object[] getArguments(Frame frame) {

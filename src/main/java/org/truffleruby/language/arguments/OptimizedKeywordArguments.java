@@ -23,6 +23,12 @@ import org.truffleruby.language.methods.Arity;
 
 public class OptimizedKeywordArguments {
 
+    public enum CallingConvention {
+        UNOPTIMIZED,
+        OPTIMIZED_GENERIC,
+        OPTIMIZED_PACKED
+    }
+
     // Logic for saying if the optimization applies
 
     public static boolean isKeywordArgumentOptimizable(Arity arity) {
@@ -30,12 +36,12 @@ public class OptimizedKeywordArguments {
     }
 
     public static boolean isKeyWordArgsOptimizable(Frame frame) {
-        return flattenedHashType(frame).isEmpty();
+        return RubyArguments.getCallingConvention(frame) == CallingConvention.UNOPTIMIZED;
     }
 
     // Logic for packing
 
-    public static Object[] packOptimizedArguments(Object[] arguments, Memo<String> flattenArgumentsFlagMemo) {
+    public static Object[] packOptimizedArguments(Object[] arguments, Memo<CallingConvention> flattenArgumentsFlagMemo) {
         // Sometimes the argument is empty, and not a RubyHash instance
         if (arguments.length > 0 && arguments[0] instanceof RubyHash) {
 
@@ -44,14 +50,14 @@ public class OptimizedKeywordArguments {
             arguments = flattenArguments(extractedArguments);
 
             if (extractedArguments.firstInSequence != null) {
-                flattenArgumentsFlagMemo.set("GenericHash");
+                flattenArgumentsFlagMemo.set(CallingConvention.OPTIMIZED_GENERIC);
             } else {
-                flattenArgumentsFlagMemo.set("PackedHash");
+                flattenArgumentsFlagMemo.set(CallingConvention.OPTIMIZED_PACKED);
             }
 
             return arguments;
         } else {
-            flattenArgumentsFlagMemo.set("");
+            flattenArgumentsFlagMemo.set(CallingConvention.UNOPTIMIZED);
             return arguments;
         }
     }
@@ -80,10 +86,6 @@ public class OptimizedKeywordArguments {
 
     // Logic for unpacking
 
-    public static String flattenedHashType(Frame frame) {
-        return (String) frame.getArguments()[RubyArguments.ArgumentIndicies.KW_ARGS_OPTIMIZABLE_FLAG.ordinal()];
-    }
-
     public static int getOptimizedArgumentsCount(Frame frame) {
         return (frame.getArguments().length - RubyArguments.RUNTIME_ARGUMENT_COUNT) / 3;
     }
@@ -91,70 +93,76 @@ public class OptimizedKeywordArguments {
     public static Object reconstructHash(VirtualFrame frame) {
         Object lastArgument;
         Object[] flattenedArguments = RubyArguments.getArguments(frame);
-        String hashType = flattenedHashType(frame);
-        lastArgument = reconstructArgumentHash(hashType, flattenedArguments);
+        CallingConvention callingConvention = RubyArguments.getCallingConvention(frame);
+        lastArgument = reconstructArgumentHash(callingConvention, flattenedArguments);
         return lastArgument;
     }
 
     public static void actualNumberOfArguments(VirtualFrame frame, Memo<Integer> givenMemo, Memo<Integer> argumentsCountMemo) {
-        if (flattenedHashType(frame) == "PackedHash") {
-            givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
-            argumentsCountMemo.set(givenMemo.get() / 3);
-        } else if (flattenedHashType(frame) == "GenericHash") {
-            argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
+        switch (RubyArguments.getCallingConvention(frame)) {
+            case OPTIMIZED_PACKED:
+                givenMemo.set(RubyArguments.getArgumentsCount(frame) / 3);
+                argumentsCountMemo.set(givenMemo.get() / 3);
+                return;
+
+            case OPTIMIZED_GENERIC:
+                argumentsCountMemo.set(RubyArguments.getArgumentsCount(frame) / 2);
+                return;
+
+            default:
+                argumentsCountMemo.set(givenMemo.get());
+                return;
         }
-        argumentsCountMemo.set(givenMemo.get());
     }
 
 
-    public static RubyHash reconstructArgumentHash(String hashType, Object[] flattenedArguments) {
-        assert !hashType.isEmpty();
-
-        if (hashType == "PackedHash") {
-            final Object[] store = PackedHashStoreLibrary.createStore();
-            for (int n = 0; n < flattenedArguments.length; n += 3) {
-                // I'm not sure why but sometimes there are null elements
-                // at the end of the `flattenedArguments` array
-                if (flattenedArguments[n] == null) {
-                    break;
+    public static RubyHash reconstructArgumentHash(CallingConvention callingConvention, Object[] flattenedArguments) {
+        switch (callingConvention) {
+            case OPTIMIZED_PACKED:
+                final Object[] store = PackedHashStoreLibrary.createStore();
+                for (int n = 0; n < flattenedArguments.length; n += 3) {
+                    // I'm not sure why but sometimes there are null elements
+                    // at the end of the `flattenedArguments` array
+                    if (flattenedArguments[n] == null) {
+                        break;
+                    }
+                    PackedHashStoreLibrary.setHashedKeyValue(store, n / 3, (Integer) flattenedArguments[n], flattenedArguments[n + 1], flattenedArguments[n + 2]);
                 }
-                PackedHashStoreLibrary.setHashedKeyValue(store, n / 3, (Integer) flattenedArguments[n], flattenedArguments[n + 1], flattenedArguments[n + 2]);
-            }
-            return new RubyHash(
-                    RubyLanguage.getCurrentContext().getCoreLibrary().hashClass,
-                    RubyLanguage.getCurrentLanguage().hashShape,
-                    RubyLanguage.getCurrentContext(),
-                    store,
-                    flattenedArguments.length / 3,
-                    null,
-                    null,
-                    RubyBaseNode.nil,
-                    RubyBaseNode.nil,
-                    false);
-        }
+                return new RubyHash(
+                        RubyLanguage.getCurrentContext().getCoreLibrary().hashClass,
+                        RubyLanguage.getCurrentLanguage().hashShape,
+                        RubyLanguage.getCurrentContext(),
+                        store,
+                        flattenedArguments.length / 3,
+                        null,
+                        null,
+                        RubyBaseNode.nil,
+                        RubyBaseNode.nil,
+                        false);
 
-        if (hashType == "GenericHash") {
-            HashStoreLibrary hashes = HashStoreLibrary.getUncached();
-            BucketsHashStore bucket = new BucketsHashStore(new Entry[flattenedArguments.length / 2 * 4]);
-            final RubyHash rubyHash = new RubyHash(
-                    RubyLanguage.getCurrentContext().getCoreLibrary().hashClass,
-                    RubyLanguage.getCurrentLanguage().hashShape,
-                    RubyLanguage.getCurrentContext(),
-                    bucket,
-                    flattenedArguments.length / 2,
-                    null,
-                    null,
-                    RubyBaseNode.nil,
-                    RubyBaseNode.nil,
-                    false);
-            for (int n = 0; n < flattenedArguments.length; n += 2) {
-                final Object key = flattenedArguments[n];
-                final Object value = flattenedArguments[n + 1];
-                hashes.set(rubyHash.store, rubyHash, key, value, false);
-            }
-            return rubyHash;
-        } else {
-            return null;
+            case OPTIMIZED_GENERIC:
+                HashStoreLibrary hashes = HashStoreLibrary.getUncached();
+                BucketsHashStore bucket = new BucketsHashStore(new Entry[flattenedArguments.length / 2 * 4]);
+                final RubyHash rubyHash = new RubyHash(
+                        RubyLanguage.getCurrentContext().getCoreLibrary().hashClass,
+                        RubyLanguage.getCurrentLanguage().hashShape,
+                        RubyLanguage.getCurrentContext(),
+                        bucket,
+                        flattenedArguments.length / 2,
+                        null,
+                        null,
+                        RubyBaseNode.nil,
+                        RubyBaseNode.nil,
+                        false);
+                for (int n = 0; n < flattenedArguments.length; n += 2) {
+                    final Object key = flattenedArguments[n];
+                    final Object value = flattenedArguments[n + 1];
+                    hashes.set(rubyHash.store, rubyHash, key, value, false);
+                }
+                return rubyHash;
+
+            default:
+                throw new UnsupportedOperationException();
         }
     }
 
