@@ -12,6 +12,7 @@ package org.truffleruby.language.objects;
 import org.truffleruby.core.module.RubyModule;
 import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.methods.InternalMethod;
 import org.truffleruby.language.methods.ModuleBodyDefinitionNode;
@@ -36,6 +37,9 @@ public class RunModuleDefinitionNode extends RubyContextSourceNode {
         final RubyModule module = (RubyModule) definingModule.execute(frame);
         final InternalMethod definition = definitionMethod.createMethod(frame, module);
 
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         return callModuleDefinitionNode.call(definition.getCallTarget(), RubyArguments.pack(
                 null,
                 null,
@@ -43,6 +47,7 @@ public class RunModuleDefinitionNode extends RubyContextSourceNode {
                 null,
                 module,
                 nil,
+                keywordArgumentsDescriptor,
                 EMPTY_ARGUMENTS));
     }
 

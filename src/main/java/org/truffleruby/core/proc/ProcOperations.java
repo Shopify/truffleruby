@@ -13,6 +13,7 @@ import com.oracle.truffle.api.object.Shape;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.klass.RubyClass;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.control.FrameOnStackMarker;
 import org.truffleruby.language.methods.DeclarationContext;
@@ -26,6 +27,9 @@ import com.oracle.truffle.api.frame.MaterializedFrame;
 public abstract class ProcOperations {
 
     private static Object[] packArguments(RubyProc proc, Object... args) {
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         return RubyArguments.pack(
                 proc.declarationFrame,
                 null,
@@ -33,6 +37,7 @@ public abstract class ProcOperations {
                 proc.frameOnStackMarker,
                 getSelf(proc),
                 proc.block,
+                keywordArgumentsDescriptor,
                 args);
     }
 

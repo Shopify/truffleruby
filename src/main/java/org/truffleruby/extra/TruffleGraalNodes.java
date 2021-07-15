@@ -22,6 +22,7 @@ import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.language.RubyLambdaRootNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyRootNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.library.RubyStringLibrary;
 import org.truffleruby.language.methods.Split;
 import org.truffleruby.language.threadlocal.SpecialVariableStorage;
@@ -111,6 +112,9 @@ public abstract class TruffleGraalNodes {
 
             SpecialVariableStorage variables = proc.declarationVariables;
 
+            // TODO
+            final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
             final Object[] args = RubyArguments
                     .pack(
                             null,
@@ -119,6 +123,7 @@ public abstract class TruffleGraalNodes {
                             null,
                             nil,
                             nil,
+                            keywordArgumentsDescriptor,
                             EMPTY_ARGUMENTS);
 
             // The Proc no longer needs the original declaration frame. However, all procs must have a

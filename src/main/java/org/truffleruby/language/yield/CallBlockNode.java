@@ -15,6 +15,7 @@ import org.truffleruby.core.proc.ProcOperations;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.RubyRootNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.methods.DeclarationContext;
 
@@ -75,6 +76,9 @@ public abstract class CallBlockNode extends RubyBaseNode {
 
     private Object[] packArguments(DeclarationContext declarationContext, RubyProc block, Object self,
             Object blockArgument, Object[] arguments) {
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         return RubyArguments.pack(
                 block.declarationFrame,
                 null,
@@ -83,6 +87,7 @@ public abstract class CallBlockNode extends RubyBaseNode {
                 block.frameOnStackMarker,
                 self,
                 blockArgument,
+                keywordArgumentsDescriptor,
                 arguments);
     }
 

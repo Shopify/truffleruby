@@ -34,7 +34,8 @@ public final class RubyArguments {
         DECLARATION_CONTEXT, // 3
         FRAME_ON_STACK_MARKER, // 4
         SELF, // 5
-        BLOCK // 6
+        BLOCK, // 6
+        KEYWORD_ARGUMENTS_DESCRIPTOR // 7
     }
 
     private static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
@@ -47,6 +48,7 @@ public final class RubyArguments {
             FrameOnStackMarker frameOnStackMarker,
             Object self,
             Object block,
+            KeywordArgumentsDescriptor keywordArgumentsDescriptor,
             Object[] arguments) {
         return pack(
                 declarationFrame,
@@ -56,6 +58,7 @@ public final class RubyArguments {
                 frameOnStackMarker,
                 self,
                 block,
+                keywordArgumentsDescriptor,
                 arguments);
     }
 
@@ -67,8 +70,9 @@ public final class RubyArguments {
             FrameOnStackMarker frameOnStackMarker,
             Object self,
             Object block,
+            KeywordArgumentsDescriptor keywordArgumentsDescriptor,
             Object[] arguments) {
-        assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, arguments);
+        assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, keywordArgumentsDescriptor, arguments);
 
         final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
 
@@ -79,6 +83,7 @@ public final class RubyArguments {
         packed[ArgumentIndicies.FRAME_ON_STACK_MARKER.ordinal()] = frameOnStackMarker;
         packed[ArgumentIndicies.SELF.ordinal()] = self;
         packed[ArgumentIndicies.BLOCK.ordinal()] = block;
+        packed[ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()] = keywordArgumentsDescriptor;
 
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
 
@@ -91,6 +96,7 @@ public final class RubyArguments {
             DeclarationContext declarationContext,
             Object self,
             Object block,
+            KeywordArgumentsDescriptor keywordArgumentsDescriptor,
             Object[] arguments) {
         assert method != null;
         assert declarationContext != null;
@@ -109,6 +115,8 @@ public final class RubyArguments {
          *
          * When you read the block back out in the callee, you'll therefore get a Nil or RubyProc. */
         assert block instanceof Nil || block instanceof RubyProc : block;
+
+        assert keywordArgumentsDescriptor != null;
 
         return true;
     }
@@ -166,6 +174,12 @@ public final class RubyArguments {
         /* We put into the arguments array either a Nil or RubyProc, so that's all we'll get out at this point. */
         assert block instanceof Nil || block instanceof RubyProc : StringUtils.toString(block);
         return block;
+    }
+
+    public static KeywordArgumentsDescriptor getKeywordArgumentsDescriptor(Frame frame) {
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = (KeywordArgumentsDescriptor) frame.getArguments()[ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()];
+        assert keywordArgumentsDescriptor != null;
+        return keywordArgumentsDescriptor;
     }
 
     public static int getArgumentsCount(Frame frame) {

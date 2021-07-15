@@ -11,6 +11,7 @@ package org.truffleruby.language;
 
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.methods.DeclarationContext;
 import org.truffleruby.language.methods.InternalMethod;
@@ -74,6 +75,9 @@ public class RubyInlineParsingRequestNode extends ExecutableNode {
     public Object execute(VirtualFrame frame) {
         assert RubyLanguage.getCurrentContext() == context;
 
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         // We run the Ruby code as if it was written in a block
         final Object[] arguments = RubyArguments.pack(
                 frame.materialize(),
@@ -82,6 +86,7 @@ public class RubyInlineParsingRequestNode extends ExecutableNode {
                 null,
                 RubyArguments.getSelf(frame),
                 RubyArguments.getBlock(frame),
+                keywordArgumentsDescriptor,
                 RubyBaseNode.EMPTY_ARGUMENTS);
 
         // No need to share the returned value here, InlineParsingRequest is not exposed to the Context API

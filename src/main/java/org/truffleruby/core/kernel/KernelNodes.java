@@ -105,6 +105,7 @@ import org.truffleruby.language.RubyRootNode;
 import org.truffleruby.language.RubySourceNode;
 import org.truffleruby.language.Visibility;
 import org.truffleruby.language.WarningNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.ReadCallerFrameNode;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.backtrace.Backtrace;
@@ -862,6 +863,9 @@ public abstract class KernelNodes {
                     Visibility.PUBLIC,
                     callTarget);
 
+            // TODO
+            final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
             return callNode.call(RubyArguments.pack(
                     parentFrame,
                     null,
@@ -869,6 +873,7 @@ public abstract class KernelNodes {
                     null,
                     self,
                     nil,
+                    keywordArgumentsDescriptor,
                     EMPTY_ARGUMENTS));
         }
 

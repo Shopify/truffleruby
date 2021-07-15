@@ -40,6 +40,7 @@ import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubySourceNode;
 import org.truffleruby.language.Visibility;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.ReadCallerFrameNode;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.control.RaiseException;
@@ -112,6 +113,9 @@ public abstract class BindingNodes {
     }
 
     public static MaterializedFrame newFrame(MaterializedFrame parent, FrameDescriptor descriptor) {
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         return Truffle.getRuntime().createVirtualFrame(
                 RubyArguments.pack(
                         parent,
@@ -121,6 +125,7 @@ public abstract class BindingNodes {
                         null,
                         RubyArguments.getSelf(parent),
                         RubyArguments.getBlock(parent),
+                        keywordArgumentsDescriptor,
                         RubyArguments.getArguments(parent)),
                 descriptor).materialize();
     }

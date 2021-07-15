@@ -14,6 +14,7 @@ import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.language.Nil;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.loader.CodeLoader;
 import org.truffleruby.language.methods.DeclarationContext;
@@ -43,6 +44,9 @@ public abstract class DebugHelpers {
 
         final DeclarationContext declarationContext = RubyArguments.getDeclarationContext(currentFrame);
 
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         final Object[] packedArguments = RubyArguments.pack(
                 null,
                 null,
@@ -51,6 +55,7 @@ public abstract class DebugHelpers {
                 null,
                 RubyArguments.getSelf(currentFrame),
                 Nil.INSTANCE,
+                keywordArgumentsDescriptor,
                 RubyNode.EMPTY_ARGUMENTS);
 
         final FrameDescriptor frameDescriptor = new FrameDescriptor(

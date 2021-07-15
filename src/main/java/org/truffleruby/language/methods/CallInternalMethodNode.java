@@ -35,6 +35,7 @@ import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.IndirectCallNode;
 import org.truffleruby.language.RubyCheckArityRootNode;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.control.RaiseException;
 import org.truffleruby.language.dispatch.DispatchNode;
@@ -61,13 +62,19 @@ public abstract class CallInternalMethodNode extends RubyBaseNode {
             @Cached("method.getCallTarget()") RootCallTarget cachedCallTarget,
             @Cached("method") InternalMethod cachedMethod,
             @Cached("createCall(cachedMethod.getName(), cachedCallTarget)") DirectCallNode callNode) {
-        return callNode.call(packArguments(callerData, method, self, block, args));
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
+        return callNode.call(packArguments(callerData, method, self, block, keywordArgumentsDescriptor, args));
     }
 
     @Specialization(guards = "!method.alwaysInlined()", replaces = "callCached")
     protected Object callUncached(Object callerData, InternalMethod method, Object self, Object block, Object[] args,
             @Cached IndirectCallNode indirectCallNode) {
-        return indirectCallNode.call(method.getCallTarget(), packArguments(callerData, method, self, block, args));
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
+        return indirectCallNode.call(method.getCallTarget(), packArguments(callerData, method, self, block, keywordArgumentsDescriptor, args));
     }
 
     @Specialization(
@@ -86,7 +93,10 @@ public abstract class CallInternalMethodNode extends RubyBaseNode {
             @Cached BranchProfile checkArityProfile,
             @Cached BranchProfile exceptionProfile,
             @CachedContext(RubyLanguage.class) ContextReference<RubyContext> contextRef) {
-        assert RubyArguments.assertValues(callerData, method, method.getDeclarationContext(), self, block, args);
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
+        assert RubyArguments.assertValues(callerData, method, method.getDeclarationContext(), self, block, keywordArgumentsDescriptor, args);
 
         try {
             RubyCheckArityRootNode
@@ -162,8 +172,8 @@ public abstract class CallInternalMethodNode extends RubyBaseNode {
         return (AlwaysInlinedMethodNode) method.alwaysInlinedNodeFactory.getUncachedInstance();
     }
 
-    static Object[] packArguments(Object callerData, InternalMethod method, Object self, Object block, Object[] args) {
-        return RubyArguments.pack(null, callerData, method, null, self, block, args);
+    static Object[] packArguments(Object callerData, InternalMethod method, Object self, Object block, KeywordArgumentsDescriptor keywordArgumentsDescriptor, Object[] args) {
+        return RubyArguments.pack(null, callerData, method, null, self, block, keywordArgumentsDescriptor, args);
     }
 
     protected Assumption getMethodAssumption(InternalMethod method) {

@@ -12,6 +12,7 @@ package org.truffleruby.language;
 import com.oracle.truffle.api.TruffleLanguage.ContextReference;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.backtrace.InternalRootNode;
 import org.truffleruby.language.methods.DeclarationContext;
@@ -78,6 +79,9 @@ public class RubyParsingRequestNode extends RubyBaseRootNode implements Internal
 
         printTimeMetric("before-script");
         try {
+            // TODO
+            final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
             final Object value = callNode.call(RubyArguments.pack(
                     null,
                     null,
@@ -85,6 +89,7 @@ public class RubyParsingRequestNode extends RubyBaseRootNode implements Internal
                     null,
                     context.getCoreLibrary().mainObject,
                     Nil.INSTANCE,
+                    keywordArgumentsDescriptor,
                     frame.getArguments()));
 
             // The return value will be leaked to Java, so share it if the Context API is used.

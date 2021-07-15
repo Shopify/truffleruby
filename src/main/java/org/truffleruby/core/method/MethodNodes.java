@@ -39,6 +39,7 @@ import org.truffleruby.language.RubyLambdaRootNode;
 import org.truffleruby.language.RubyRootNode;
 import org.truffleruby.language.Visibility;
 import org.truffleruby.language.arguments.ArgumentDescriptorUtils;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.control.BreakID;
 import org.truffleruby.language.control.RaiseException;
@@ -298,8 +299,11 @@ public abstract class MethodNodes {
         }
 
         private RubyProc createProc(RootCallTarget callTarget, InternalMethod method, Object receiver) {
+            // TODO
+            final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
             final Object[] packedArgs = RubyArguments
-                    .pack(null, null, method, null, receiver, nil, EMPTY_ARGUMENTS);
+                    .pack(null, null, method, null, receiver, nil, keywordArgumentsDescriptor, EMPTY_ARGUMENTS);
             final MaterializedFrame declarationFrame = Truffle
                     .getRuntime()
                     .createMaterializedFrame(packedArgs, coreLibrary().emptyDeclarationDescriptor);

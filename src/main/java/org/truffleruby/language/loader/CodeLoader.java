@@ -20,6 +20,7 @@ import org.truffleruby.language.Nil;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyRootNode;
 import org.truffleruby.language.Visibility;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.methods.DeclarationContext;
 import org.truffleruby.language.methods.InternalMethod;
@@ -102,6 +103,9 @@ public class CodeLoader {
                 Visibility.PUBLIC,
                 callTarget);
 
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
         return new DeferredCall(callTarget, RubyArguments.pack(
                 parentFrame,
                 null,
@@ -109,6 +113,7 @@ public class CodeLoader {
                 null,
                 self,
                 Nil.INSTANCE,
+                keywordArgumentsDescriptor,
                 RubyNode.EMPTY_ARGUMENTS));
     }
 
