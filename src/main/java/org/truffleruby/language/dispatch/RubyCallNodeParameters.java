@@ -10,6 +10,7 @@
 package org.truffleruby.language.dispatch;
 
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 
 public class RubyCallNodeParameters {
 
@@ -17,6 +18,7 @@ public class RubyCallNodeParameters {
     private final String methodName;
     private final RubyNode block;
     private final RubyNode[] arguments;
+    private final KeywordArgumentsDescriptor keywordArgumentsDescriptor;
     private final boolean isSplatted;
     private final boolean ignoreVisibility;
     private final boolean isVCall;
@@ -28,9 +30,10 @@ public class RubyCallNodeParameters {
             String methodName,
             RubyNode block,
             RubyNode[] arguments,
+            KeywordArgumentsDescriptor keywordArgumentsDescriptor,
             boolean isSplatted,
             boolean ignoreVisibility) {
-        this(receiver, methodName, block, arguments, isSplatted, ignoreVisibility, false, false, false);
+        this(receiver, methodName, block, arguments, keywordArgumentsDescriptor, isSplatted, ignoreVisibility, false, false, false);
     }
 
     public RubyCallNodeParameters(
@@ -38,6 +41,7 @@ public class RubyCallNodeParameters {
             String methodName,
             RubyNode block,
             RubyNode[] arguments,
+            KeywordArgumentsDescriptor keywordArgumentsDescriptor,
             boolean isSplatted,
             boolean ignoreVisibility,
             boolean isVCall,
@@ -47,6 +51,7 @@ public class RubyCallNodeParameters {
         this.methodName = methodName;
         this.block = block;
         this.arguments = arguments;
+        this.keywordArgumentsDescriptor = keywordArgumentsDescriptor;
         this.isSplatted = isSplatted;
         this.ignoreVisibility = ignoreVisibility;
         this.isVCall = isVCall;
@@ -54,12 +59,13 @@ public class RubyCallNodeParameters {
         this.isAttrAssign = isAttrAssign;
     }
 
-    public RubyCallNodeParameters withReceiverAndArguments(RubyNode receiver, RubyNode[] arguments, RubyNode block) {
+    public RubyCallNodeParameters withReceiverAndArguments(RubyNode receiver, RubyNode[] arguments, KeywordArgumentsDescriptor keywordArgumentsDescriptor, RubyNode block) {
         return new RubyCallNodeParameters(
                 receiver,
                 methodName,
                 block,
                 arguments,
+                keywordArgumentsDescriptor,
                 isSplatted,
                 ignoreVisibility,
                 isVCall,
@@ -68,7 +74,7 @@ public class RubyCallNodeParameters {
     }
 
     public RubyCallNodeParameters withBlock(RubyNode block) {
-        return withReceiverAndArguments(receiver, arguments, block);
+        return withReceiverAndArguments(receiver, arguments, keywordArgumentsDescriptor, block);
     }
 
     public RubyNode getReceiver() {

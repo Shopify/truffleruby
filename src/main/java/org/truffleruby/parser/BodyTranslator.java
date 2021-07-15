@@ -68,6 +68,7 @@ import org.truffleruby.language.NotProvided;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyRootNode;
 import org.truffleruby.language.SourceIndexLength;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.constants.OrAssignConstantNode;
 import org.truffleruby.language.constants.ReadConstantNode;
 import org.truffleruby.language.constants.ReadConstantWithDynamicScopeNode;
@@ -628,6 +629,7 @@ public class BodyTranslator extends Translator {
 
         private final RubyNode block;
         private final RubyNode[] arguments;
+        private final KeywordArgumentsDescriptor keywordArgumentsDescriptor;
         private final boolean isSplatted;
         private final FrameSlot frameOnStackMarkerSlot;
 
@@ -733,6 +735,8 @@ public class BodyTranslator extends Translator {
         }
 
         currentCallMethodName = null;
+
+        // find the list of keyword argument keywords
 
         return new ArgumentsAndBlockTranslation(
                 blockTranslated,
