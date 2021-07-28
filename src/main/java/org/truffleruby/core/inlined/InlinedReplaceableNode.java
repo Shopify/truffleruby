@@ -20,6 +20,7 @@ import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.dispatch.RubyCallNode;
 import org.truffleruby.language.dispatch.RubyCallNodeParameters;
 
@@ -54,6 +55,7 @@ public abstract class InlinedReplaceableNode extends RubyContextSourceNode {
                 RubyCallNode callNode = new RubyCallNode(parameters.withReceiverAndArguments(
                         getReceiverNode(),
                         getArgumentNodes(),
+                        KeywordArgumentsDescriptor.EMPTY, // TODO
                         getBlockNode()));
                 callNode.unsafeSetSourceSection(getSourceIndexLength());
                 replacedBy = callNode;

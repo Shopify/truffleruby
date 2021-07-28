@@ -93,6 +93,8 @@ public class RubyCallNodeParameters {
         return arguments;
     }
 
+    public KeywordArgumentsDescriptor getKeywordArgumentsDescriptor() { return keywordArgumentsDescriptor; }
+
     public boolean isSplatted() {
         return isSplatted;
     }

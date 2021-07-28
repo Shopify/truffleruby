@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jcodings.Encoding;
 import org.joni.NameEntry;
@@ -601,6 +602,7 @@ public class BodyTranslator extends Translator {
                 methodName,
                 argumentsAndBlock.getBlock(),
                 argumentsAndBlock.getArguments(),
+                argumentsAndBlock.getKeywordArgumentsDescriptor(),
                 argumentsAndBlock.isSplatted(),
                 ignoreVisibility,
                 isVCall,
@@ -637,10 +639,12 @@ public class BodyTranslator extends Translator {
                 RubyNode block,
                 RubyNode[] arguments,
                 boolean isSplatted,
+                KeywordArgumentsDescriptor keywordArgumentsDescriptor,
                 FrameSlot frameOnStackMarkerSlot) {
             super();
             this.block = block;
             this.arguments = arguments;
+            this.keywordArgumentsDescriptor = keywordArgumentsDescriptor;
             this.isSplatted = isSplatted;
             this.frameOnStackMarkerSlot = frameOnStackMarkerSlot;
         }
@@ -660,6 +664,8 @@ public class BodyTranslator extends Translator {
         public FrameSlot getFrameOnStackMarkerSlot() {
             return frameOnStackMarkerSlot;
         }
+
+        public KeywordArgumentsDescriptor getKeywordArgumentsDescriptor() { return keywordArgumentsDescriptor; }
     }
 
     public static final Object BAD_FRAME_SLOT = new Object();
@@ -736,13 +742,17 @@ public class BodyTranslator extends Translator {
 
         currentCallMethodName = null;
 
-        // find the list of keyword argument keywords
+        if ((this.parent != null) && (this.parent.toString().contains("kw_args.rb"))) {
+            System.out.println("hi");
+        }
 
+        KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.getKeywordArgumentsDescriptor(arguments);
         return new ArgumentsAndBlockTranslation(
-                blockTranslated,
-                argumentsTranslated,
-                isSplatted,
-                frameOnStackMarkerSlot);
+            blockTranslated,
+            argumentsTranslated,
+            isSplatted,
+            keywordArgumentsDescriptor,
+            frameOnStackMarkerSlot);
     }
 
     @Override
@@ -787,11 +797,16 @@ public class BodyTranslator extends Translator {
                     method = "when_splat";
                     arguments = new RubyNode[]{ rubyExpression, NodeUtil.cloneNode(readTemp) };
                 }
+
+                // TODO
+                final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
                 final RubyCallNodeParameters callParameters = new RubyCallNodeParameters(
                         receiver,
                         method,
                         null,
                         arguments,
+                        keywordArgumentsDescriptor,
                         false,
                         true);
                 final RubyNode conditionNode = language.coreMethodAssumptions
@@ -927,11 +942,15 @@ public class BodyTranslator extends Translator {
                     return match;
                 }
 
+                // TODO
+                final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
                 deconstructCallParameters = new RubyCallNodeParameters(
                         expressionValue,
                         "deconstruct",
                         null,
                         RubyNode.EMPTY_ARRAY,
+                        keywordArgumentsDescriptor,
                         false,
                         true);
                 deconstructed = language.coreMethodAssumptions
@@ -945,6 +964,7 @@ public class BodyTranslator extends Translator {
                         "array_pattern_matches?",
                         null,
                         new RubyNode[]{ patternNode.accept(this), NodeUtil.cloneNode(deconstructed) },
+                        keywordArgumentsDescriptor,
                         false,
                         true);
                 return language.coreMethodAssumptions
@@ -955,6 +975,7 @@ public class BodyTranslator extends Translator {
                         "deconstruct_keys",
                         null,
                         new RubyNode[]{ new NilLiteralNode(true) },
+                        KeywordArgumentsDescriptor.EMPTY, // TODO
                         false,
                         true);
                 deconstructed = language.coreMethodAssumptions
@@ -968,6 +989,7 @@ public class BodyTranslator extends Translator {
                         "hash_pattern_matches?",
                         null,
                         new RubyNode[]{ patternNode.accept(this), NodeUtil.cloneNode(deconstructed) },
+                        KeywordArgumentsDescriptor.EMPTY, // TODO
                         false,
                         true);
                 return language.coreMethodAssumptions
@@ -987,6 +1009,7 @@ public class BodyTranslator extends Translator {
                         "===",
                         null,
                         new RubyNode[]{ NodeUtil.cloneNode(expressionValue) },
+                        KeywordArgumentsDescriptor.EMPTY, // TODO
                         false,
                         true);
                 return language.coreMethodAssumptions
@@ -2332,6 +2355,7 @@ public class BodyTranslator extends Translator {
                         node.getOperator(),
                         null,
                         new RubyNode[]{ rhs },
+                        KeywordArgumentsDescriptor.EMPTY, // TODO
                         false,
                         true);
                 final RubyNode opNode = language.coreMethodAssumptions.createCallNode(callParameters, environment);
@@ -2632,6 +2656,7 @@ public class BodyTranslator extends Translator {
                 "convert",
                 null,
                 arguments,
+                KeywordArgumentsDescriptor.EMPTY, // TODO
                 false,
                 true);
         return withSourceSection(sourceSection, new RubyCallNode(parameters));

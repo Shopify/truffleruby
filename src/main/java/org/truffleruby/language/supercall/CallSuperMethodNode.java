@@ -11,6 +11,7 @@ package org.truffleruby.language.supercall;
 
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.language.FrameAndVariablesSendingNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.dispatch.DispatchNode;
 import org.truffleruby.language.methods.CallInternalMethodNode;
@@ -49,7 +50,9 @@ public class CallSuperMethodNode extends FrameAndVariablesSendingNode {
         }
 
         final Object callerFrameOrVariables = getFrameOrStorageIfRequired(frame);
-        return getCallMethodNode().execute(frame, callerFrameOrVariables, superMethod, self, block, arguments);
+        // TODO
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+        return getCallMethodNode().execute(frame, callerFrameOrVariables, superMethod, self, block, arguments, keywordArgumentsDescriptor);
     }
 
     private CallInternalMethodNode getCallMethodNode() {

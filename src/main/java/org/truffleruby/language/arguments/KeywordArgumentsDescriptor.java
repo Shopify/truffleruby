@@ -9,6 +9,12 @@
  */
 package org.truffleruby.language.arguments;
 
+import org.truffleruby.parser.ast.HashParseNode;
+import org.truffleruby.parser.ast.LocalVarParseNode;
+import org.truffleruby.parser.ast.ParseNode;
+import org.truffleruby.parser.ast.SymbolParseNode;
+import org.truffleruby.parser.parser.ParseNodeTuple;
+
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -56,4 +62,37 @@ public class KeywordArgumentsDescriptor {
                 '}';
     }
 
+    public static KeywordArgumentsDescriptor getKeywordArgumentsDescriptor(ParseNode[] arguments) {
+        KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+        if ((arguments.length > 0)) {
+
+            // First, check for `HashParseNode` in the argument
+            Object hashIndex = null;
+            for (int i = 0; i < arguments.length; i++) {
+                if (arguments[i] instanceof HashParseNode) {
+                    hashIndex = i;
+                }
+            }
+
+            if (hashIndex != null) {
+                // Then, create array with number of pairs (keyword-value pairs) and add them into the array
+                HashParseNode keywordArgHash = (HashParseNode) arguments[(Integer) hashIndex];
+                String[] keywords = new String[keywordArgHash.getPairs().size()];
+                int countIndex = 0;
+                for (ParseNodeTuple pair : keywordArgHash.getPairs()) {
+                    if (pair instanceof ParseNodeTuple) {
+                        if (pair.getKey() instanceof SymbolParseNode) {
+                            keywords[countIndex] = ((SymbolParseNode) pair.getKey()).getName();
+                        } else if (pair.getKey() instanceof LocalVarParseNode) {
+                            keywords[countIndex] = ((LocalVarParseNode) pair.getKey()).getName();
+                        }
+                        countIndex++;
+                    }
+                }
+
+                keywordArgumentsDescriptor = KeywordArgumentsDescriptor.get(keywords);
+            }
+        }
+        return keywordArgumentsDescriptor;
+    }
 }

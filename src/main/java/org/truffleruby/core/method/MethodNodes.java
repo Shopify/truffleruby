@@ -364,13 +364,17 @@ public abstract class MethodNodes {
         @Override
         public Object execute(VirtualFrame frame) {
             final Object originalBoundMethodReceiver = RubyArguments.getSelf(RubyArguments.getDeclarationFrame(frame));
+            // TODO
+            final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+
             return callInternalMethodNode.execute(
                     frame,
                     null,
                     method,
                     originalBoundMethodReceiver,
                     RubyArguments.getBlock(frame),
-                    RubyArguments.getArguments(frame));
+                    RubyArguments.getArguments(frame),
+                    keywordArgumentsDescriptor);
         }
     }
 

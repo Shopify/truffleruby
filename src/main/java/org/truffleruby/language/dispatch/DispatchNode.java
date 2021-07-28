@@ -26,6 +26,7 @@ import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.FrameAndVariablesSendingNode;
 import org.truffleruby.language.Nil;
 import org.truffleruby.language.RubyRootNode;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.control.RaiseException;
 import org.truffleruby.language.methods.CallForeignMethodNode;
 import org.truffleruby.language.methods.CallInternalMethodNode;
@@ -113,7 +114,14 @@ public class DispatchNode extends FrameAndVariablesSendingNode implements Dispat
         return dispatch(null, receiver, method, block, arguments);
     }
 
-    public final Object dispatch(Frame frame, Object receiver, String methodName, Object block, Object[] arguments) {
+    // TODO: We have this temporarily to adhere to the DispatchingNode interface
+    @Override
+    public Object dispatch(Frame frame, Object receiver, String methodName, Object block, Object[] arguments) {
+        final KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+        return dispatch(frame, receiver, methodName, block, arguments, keywordArgumentsDescriptor);
+    }
+
+    public final Object dispatch(Frame frame, Object receiver, String methodName, Object block, Object[] arguments, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
         assert block instanceof Nil || block instanceof RubyProc : block;
 
         final RubyClass metaclass = metaclassNode.execute(receiver);
@@ -135,7 +143,7 @@ public class DispatchNode extends FrameAndVariablesSendingNode implements Dispat
         }
 
         final Object callerFrameOrVariables = getFrameOrStorageIfRequired(frame);
-        return callNode.execute(frame, callerFrameOrVariables, method, receiver, block, arguments);
+        return callNode.execute(frame, callerFrameOrVariables, method, receiver, block, arguments, keywordArgumentsDescriptor);
     }
 
     private Object callMethodMissing(
