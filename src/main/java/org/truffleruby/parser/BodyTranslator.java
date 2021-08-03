@@ -742,10 +742,6 @@ public class BodyTranslator extends Translator {
 
         currentCallMethodName = null;
 
-        if ((this.parent != null) && (this.parent.toString().contains("kw_args.rb"))) {
-            System.out.println("hi");
-        }
-
         KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.getKeywordArgumentsDescriptor(arguments);
         return new ArgumentsAndBlockTranslation(
             blockTranslated,

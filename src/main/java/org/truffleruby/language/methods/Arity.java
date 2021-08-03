@@ -37,10 +37,21 @@ public final class Arity {
     private final int arityNumber;
     private final int procArityNumber;
 
+    private final Object keywordArgumentsOptional;
+
     public Arity(int preRequired, int optional, boolean hasRest) {
-        this(preRequired, optional, hasRest, 0, NO_KEYWORDS, true, false);
+        this(preRequired, optional, hasRest, 0, NO_KEYWORDS, true, false, null);
     }
 
+    public Arity(int preRequired,
+                 int optional,
+                 boolean hasRest,
+                 int postRequired,
+                 String[] keywordArguments,
+                 boolean allKeywordsOptional,
+                 boolean hasKeywordsRest) {
+        this(preRequired, optional, hasRest, postRequired, keywordArguments, allKeywordsOptional, hasKeywordsRest, null);
+    }
 
     public Arity(
             int preRequired,
@@ -49,7 +60,8 @@ public final class Arity {
             int postRequired,
             String[] keywordArguments,
             boolean allKeywordsOptional,
-            boolean hasKeywordsRest) {
+            boolean hasKeywordsRest,
+            boolean[] keywordArgumentsOptional) {
         this.preRequired = preRequired;
         this.optional = optional;
         this.hasRest = hasRest;
@@ -59,6 +71,7 @@ public final class Arity {
         this.hasKeywordsRest = hasKeywordsRest;
         this.arityNumber = computeArityNumber(false);
         this.procArityNumber = computeArityNumber(true);
+        this.keywordArgumentsOptional = keywordArgumentsOptional;
 
         assert keywordArguments != null && preRequired >= 0 && optional >= 0 && postRequired >= 0 : toString();
     }
@@ -125,6 +138,8 @@ public final class Arity {
     public boolean hasKeywordsRest() {
         return hasKeywordsRest;
     }
+
+    public Object getKeywordArgumentsOptional() { return keywordArgumentsOptional; }
 
     private int computeArityNumber(boolean isProc) {
         int count = getRequired();

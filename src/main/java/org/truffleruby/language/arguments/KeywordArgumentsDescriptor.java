@@ -10,24 +10,29 @@
 package org.truffleruby.language.arguments;
 
 import org.truffleruby.parser.ast.HashParseNode;
+import org.truffleruby.parser.ast.KeywordRestArgParseNode;
 import org.truffleruby.parser.ast.LocalVarParseNode;
 import org.truffleruby.parser.ast.ParseNode;
 import org.truffleruby.parser.ast.SymbolParseNode;
+import org.truffleruby.parser.ast.types.INameNode;
 import org.truffleruby.parser.parser.ParseNodeTuple;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class KeywordArgumentsDescriptor {
 
     private static final ConcurrentHashMap<KeywordArgumentsDescriptor, KeywordArgumentsDescriptor> CANONICAL_DESCRIPTORS = new ConcurrentHashMap<>();
 
-    public static final KeywordArgumentsDescriptor EMPTY = get(new String[]{});
+    public static final KeywordArgumentsDescriptor EMPTY = get(new String[]{}, false);
 
     private final String[] keywords;
+    public final boolean alsoSplat;
 
-    public static KeywordArgumentsDescriptor get(String[] keywords) {
-        final KeywordArgumentsDescriptor descriptor = new KeywordArgumentsDescriptor(keywords);
+    public static KeywordArgumentsDescriptor get(String[] keywords, boolean alsoSplat) {
+        final KeywordArgumentsDescriptor descriptor = new KeywordArgumentsDescriptor(keywords, alsoSplat);
 
         final KeywordArgumentsDescriptor found = CANONICAL_DESCRIPTORS.putIfAbsent(descriptor, descriptor);
 
@@ -38,8 +43,12 @@ public class KeywordArgumentsDescriptor {
         }
     }
 
-    private KeywordArgumentsDescriptor(String[] keywords) {
+    private KeywordArgumentsDescriptor(String[] keywords, boolean alsoSplat) {
+        for (int n = 0; n < keywords.length; n++) {
+            Objects.requireNonNull(keywords[n]);
+        }
         this.keywords = keywords;
+        this.alsoSplat = alsoSplat;
     }
 
     @Override
@@ -64,6 +73,7 @@ public class KeywordArgumentsDescriptor {
 
     public static KeywordArgumentsDescriptor getKeywordArgumentsDescriptor(ParseNode[] arguments) {
         KeywordArgumentsDescriptor keywordArgumentsDescriptor = KeywordArgumentsDescriptor.EMPTY;
+        boolean alsoSplat = false;
         if ((arguments.length > 0)) {
 
             // First, check for `HashParseNode` in the argument
@@ -75,24 +85,47 @@ public class KeywordArgumentsDescriptor {
             }
 
             if (hashIndex != null) {
-                // Then, create array with number of pairs (keyword-value pairs) and add them into the array
+                // Alright so this isn't pretty but
+                // We want to figure out the number of KW-related nodes
+                // because it may be null sometimes and we don't want to count those
                 HashParseNode keywordArgHash = (HashParseNode) arguments[(Integer) hashIndex];
-                String[] keywords = new String[keywordArgHash.getPairs().size()];
-                int countIndex = 0;
+                Integer argumentCount = 0;
                 for (ParseNodeTuple pair : keywordArgHash.getPairs()) {
                     if (pair instanceof ParseNodeTuple) {
-                        if (pair.getKey() instanceof SymbolParseNode) {
-                            keywords[countIndex] = ((SymbolParseNode) pair.getKey()).getName();
-                        } else if (pair.getKey() instanceof LocalVarParseNode) {
-                            keywords[countIndex] = ((LocalVarParseNode) pair.getKey()).getName();
+                        if ((pair.getKey() instanceof SymbolParseNode) && ((SymbolParseNode) pair.getKey()).getName() != null) {
+                            argumentCount++;
+                        } else if ((pair.getKey() instanceof LocalVarParseNode) && ((LocalVarParseNode) pair.getKey()).getName() != null) {
+                            argumentCount++;
                         }
-                        countIndex++;
                     }
                 }
 
-                keywordArgumentsDescriptor = KeywordArgumentsDescriptor.get(keywords);
+                String[] keywords = new String[argumentCount];
+                int countIndex = 0;
+                for (ParseNodeTuple pair : keywordArgHash.getPairs()) {
+                    if (pair instanceof ParseNodeTuple) {
+                        if ((pair.getKey() instanceof SymbolParseNode) && ((SymbolParseNode) pair.getKey()).getName() != null) {
+                            keywords[countIndex] = ((SymbolParseNode) pair.getKey()).getName();
+                            countIndex++;
+                        } else if ((pair.getKey() instanceof LocalVarParseNode) && ((LocalVarParseNode) pair.getKey()).getName() != null) {
+                            keywords[countIndex] = ((LocalVarParseNode) pair.getKey()).getName();
+                            countIndex++;
+                        } else if ((pair.getKey() == null) && (pair.getValue() != null)) { // Indicates a splat kw hash
+                            alsoSplat = true;
+                        }
+                    }
+                }
+                keywordArgumentsDescriptor = KeywordArgumentsDescriptor.get(keywords, alsoSplat);
             }
         }
         return keywordArgumentsDescriptor;
+    }
+
+    public boolean contains(String expected) {
+        return Arrays.asList(keywords).contains(expected);
+    }
+
+    public String[] getKeywords() {
+        return keywords;
     }
 }

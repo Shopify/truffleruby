@@ -14,10 +14,12 @@ import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLanguage.ContextReference;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.core.hash.HashOperations;
 import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.hash.library.HashStoreLibrary;
 import org.truffleruby.core.hash.library.HashStoreLibrary.EachEntryCallback;
 import org.truffleruby.core.symbol.RubySymbol;
+import org.truffleruby.debug.DebugHelpers;
 import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.RubyContextNode;
 import org.truffleruby.language.control.RaiseException;
@@ -66,6 +68,26 @@ public class CheckKeywordArityNode extends RubyBaseNode {
 
         if (!arity.hasKeywordsRest() && keywordArguments != null) {
             checkKeywordArguments(argumentsCount, keywordArguments, arity, language);
+        }
+
+        if (keywordArguments != null) {
+            checkEverythingInDescriptorIsInHash(language, keywordArguments, RubyArguments.getKeywordArgumentsDescriptor(frame));
+        }
+    }
+
+    @CompilerDirectives.TruffleBoundary
+    private void checkEverythingInDescriptorIsInHash(RubyLanguage language, RubyHash keywordArguments, KeywordArgumentsDescriptor argumentsDescriptor) {
+        assert keywordArguments != null;
+        assert argumentsDescriptor != null;
+
+        // Don't bother checking if it's a splatted keyword?
+        if (argumentsDescriptor.alsoSplat) {
+            return;
+        }
+        for (String described : argumentsDescriptor.getKeywords()) {
+            if (!((boolean) RubyContext.send(keywordArguments, "has_key?", language.getSymbol(described)))) {
+                throw new RuntimeException("descriptor says kw statically there, but not in hash! did not contain " + described);
+            }
         }
     }
 
