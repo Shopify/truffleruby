@@ -11,6 +11,9 @@ package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import org.truffleruby.core.array.ArrayUtils;
+import org.truffleruby.core.hash.Entry;
+import org.truffleruby.core.hash.RubyHash;
+import org.truffleruby.core.hash.library.PackedHashStoreLibrary;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.core.string.StringUtils;
 import org.truffleruby.language.FrameAndVariables;
@@ -25,6 +28,8 @@ import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
 
+import java.util.ArrayList;
+
 public final class RubyArguments {
 
     private enum ArgumentIndicies {
@@ -35,7 +40,8 @@ public final class RubyArguments {
         FRAME_ON_STACK_MARKER, // 4
         SELF, // 5
         BLOCK, // 6
-        KEYWORD_ARGUMENTS_DESCRIPTOR // 7
+        KEYWORD_ARGUMENTS_DESCRIPTOR, // 7
+        KEYWORD_ARGUMENTS_VALUES, // 8
     }
 
     private static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
@@ -85,9 +91,44 @@ public final class RubyArguments {
         packed[ArgumentIndicies.BLOCK.ordinal()] = block;
         packed[ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()] = keywordArgumentsDescriptor;
 
+        Object[] argumentValues;
+        int hashIndex = getIndexOfKeywordArguments(arguments);
+        if (hashIndex >= 0) {
+            argumentValues = getKeywordArgumentsValues((RubyHash) arguments[hashIndex]);
+        } else {
+            argumentValues = null;
+        }
+        packed[ArgumentIndicies.KEYWORD_ARGUMENTS_VALUES.ordinal()] = argumentValues;
+
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
 
         return packed;
+    }
+
+    private static int getIndexOfKeywordArguments(Object[] arguments) {
+        for (int i = 0; i < arguments.length; i++) {
+            if (arguments[i] instanceof RubyHash) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    private static Object[] getKeywordArgumentsValues(RubyHash arguments) {
+        ArrayList<Object> values = new ArrayList<>();
+
+        Entry entry = arguments.firstInSequence;
+        if (entry != null) {
+            while (entry != null) {
+                values.add(entry.getValue());
+                entry = entry.getNextInSequence();
+            }
+        } else if ((arguments.store != null) && (arguments.store instanceof Object[])) {
+            Object[] store = (Object[]) arguments.store;
+            for (int n = 0; n < arguments.size; n ++) {
+                values.add(store[n * PackedHashStoreLibrary.ELEMENTS_PER_ENTRY + 2]);
+            }
+        }
+        return values.toArray();
     }
 
     public static boolean assertValues(
@@ -180,6 +221,10 @@ public final class RubyArguments {
         final KeywordArgumentsDescriptor keywordArgumentsDescriptor = (KeywordArgumentsDescriptor) frame.getArguments()[ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()];
         assert keywordArgumentsDescriptor != null;
         return keywordArgumentsDescriptor;
+    }
+
+    public static Object[] getKeywordArgumentsValues(Frame frame) {
+        return (Object[]) frame.getArguments()[ArgumentIndicies.KEYWORD_ARGUMENTS_VALUES.ordinal()];
     }
 
     public static int getArgumentsCount(Frame frame) {

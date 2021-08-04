@@ -14,6 +14,7 @@ import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.TruffleLanguage.ContextReference;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.core.array.RubyArray;
 import org.truffleruby.core.hash.HashOperations;
 import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.hash.library.HashStoreLibrary;
@@ -67,7 +68,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         }
 
         if (!arity.hasKeywordsRest() && keywordArguments != null) {
-            checkKeywordArguments(argumentsCount, keywordArguments, arity, language);
+            checkKeywordArguments(argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame));
         }
 
         if (keywordArguments != null) {
@@ -91,15 +92,16 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         }
     }
 
-    void checkKeywordArguments(int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language) {
+    void checkKeywordArguments(int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues) {
         if (hashes == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             hashes = insert(HashStoreLibrary.createDispatched());
         }
-        if (checkKeywordArgumentsNode == null) {
+        //if (checkKeywordArgumentsNode == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
-            checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity));
-        }
+        // TODO this lambda node needs to know about the flattened keyword argument values, so it needs to be created per call
+            checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity, keywordArgumentsValues));
+        //}
         hashes.eachEntry(keywordArguments.store, keywordArguments, checkKeywordArgumentsNode, argumentsCount);
     }
 
@@ -108,15 +110,17 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         private final boolean doesNotAcceptExtraArguments;
         private final int required;
         @CompilationFinal(dimensions = 1) private final RubySymbol[] allowedKeywords;
+        private final Object[] keywordArgumentsValues;
 
         private final ConditionProfile isSymbolProfile = ConditionProfile.create();
         private final BranchProfile tooManyKeywordsProfile = BranchProfile.create();
         private final BranchProfile unknownKeywordProfile = BranchProfile.create();
 
-        public CheckKeywordArgumentsNode(RubyLanguage language, Arity arity) {
+        public CheckKeywordArgumentsNode(RubyLanguage language, Arity arity, Object[] keywordArgumentsValues) {
             assert !arity.hasKeywordsRest();
             doesNotAcceptExtraArguments = !arity.hasRest() && arity.getOptional() == 0;
             required = arity.getRequired();
+            this.keywordArgumentsValues = keywordArgumentsValues;
             allowedKeywords = keywordsAsSymbols(language, arity);
         }
 
@@ -129,6 +133,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
                             getContext(),
                             coreExceptions().argumentErrorUnknownKeyword((RubySymbol) key, this));
                 }
+                checkValueIsInArgumentsValueArray(index, value);
             } else {
                 // the Hash would be split and a reject Hash be created to hold non-Symbols when there is no **kwrest parameter,
                 // so we need to check if an extra argument is allowed
@@ -139,6 +144,17 @@ public class CheckKeywordArityNode extends RubyBaseNode {
                 }
             }
 
+        }
+
+        @CompilerDirectives.TruffleBoundary
+        private void checkValueIsInArgumentsValueArray(int index, Object value) {
+            if (value == null) {
+                return;
+            }
+
+            if (keywordArgumentsValues[index] != value) {
+                throw new IllegalArgumentException("optimised " + keywordArgumentsValues[index] + " original " + value);
+            }
         }
 
         @ExplodeLoop
