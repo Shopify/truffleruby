@@ -220,8 +220,9 @@ public class MethodTranslator extends BodyTranslator {
                     false,
                     this);
             destructureArgumentsTranslator.pushArraySlot(arraySlot);
-            final RubyNode newDestructureArguments = destructureArgumentsTranslator.translate();
-
+            final RubyNode newDestructureArguments = destructureArgumentsTranslator.translateNonKeywordArguments();
+            final RubyNode newDestructureKwArguments = destructureArgumentsTranslator.translateKeywordArguments();
+            final RubyNode allDestructureArguments = sequence(sourceSection, Arrays.asList(newDestructureArguments, newDestructureKwArguments));
             final RubyNode arrayWasNotNil = sequence(
                     sourceSection,
                     Arrays.asList(
@@ -236,7 +237,7 @@ public class MethodTranslator extends BodyTranslator {
 
             preludeProc = new IfElseNode(
                     shouldDestructureAndArrayWasNotNil,
-                    newDestructureArguments,
+                    allDestructureArguments,
                     loadArguments);
         } else {
             preludeProc = loadArguments;
@@ -375,10 +376,11 @@ public class MethodTranslator extends BodyTranslator {
         return body;
     }
 
+    // This is the root of all the argument unload - including keyword arguments
     public RubyNode compileMethodBody(SourceIndexLength sourceSection, ParseNode bodyNode) {
         declareArguments();
 
-        final RubyNode loadArguments = new LoadArgumentsTranslator(
+        final LoadArgumentsTranslator translator = new LoadArgumentsTranslator(
                 currentNode,
                 argsNode,
                 language,
@@ -386,11 +388,18 @@ public class MethodTranslator extends BodyTranslator {
                 parserContext,
                 false,
                 true,
-                this).translate();
+                this);
+
+        // Load positional keyword arguments
+        final RubyNode loadArguments = translator.translateNonKeywordArguments();
+
+        // We will eventually create a node here to look at the descriptor...
+        //     But first load keywords arguments
+        final RubyNode loadKeywordArguments = translator.translateKeywordArguments();
 
         RubyNode body = translateNodeOrNil(sourceSection, bodyNode).simplifyAsTailExpression();
 
-        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), loadArguments, body));
+        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), loadArguments, loadKeywordArguments, body));
 
         if (environment.getFlipFlopStates().size() > 0) {
             body = sequence(sourceSection, Arrays.asList(initFlipFlopStates(environment, sourceSection), body));
