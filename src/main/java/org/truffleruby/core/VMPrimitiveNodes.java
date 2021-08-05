@@ -37,6 +37,7 @@
  */
 package org.truffleruby.core;
 
+import java.util.Arrays;
 import java.util.Map.Entry;
 
 import com.oracle.truffle.api.TruffleStackTrace;
@@ -47,6 +48,8 @@ import org.truffleruby.RubyLanguage;
 import org.truffleruby.builtins.CoreModule;
 import org.truffleruby.builtins.Primitive;
 import org.truffleruby.builtins.PrimitiveArrayArgumentsNode;
+import org.truffleruby.core.array.ArrayHelpers;
+import org.truffleruby.core.array.RubyArray;
 import org.truffleruby.core.basicobject.BasicObjectNodes.ReferenceEqualNode;
 import org.truffleruby.core.cast.NameToJavaStringNode;
 import org.truffleruby.core.cast.ToRubyIntegerNode;
@@ -66,6 +69,8 @@ import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.core.thread.RubyThread;
 import org.truffleruby.language.RubyDynamicObject;
 import org.truffleruby.language.SafepointAction;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
+import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.backtrace.Backtrace;
 import org.truffleruby.language.control.ExitException;
 import org.truffleruby.language.control.RaiseException;
@@ -562,6 +567,44 @@ public abstract class VMPrimitiveNodes {
         @Specialization
         protected int javaVersion() {
             return JAVA_SPECIFICATION_VERSION;
+        }
+
+    }
+
+    @Primitive(name = "keyword_descriptor")
+    public abstract static class KeywordDescriptorNode extends PrimitiveArrayArgumentsNode {
+
+        @Specialization
+        protected RubyArray keywordDescriptor(VirtualFrame frame) {
+            return descriptorToArray(RubyArguments.getKeywordArgumentsDescriptor(frame));
+        }
+
+        @TruffleBoundary
+        private RubyArray descriptorToArray(KeywordArgumentsDescriptor descriptor) {
+            return ArrayHelpers.createArray(getContext(), getLanguage(),
+                    Arrays.stream(descriptor.getKeywords()).map(getLanguage()::getSymbol).toArray());
+        }
+
+    }
+
+    @Primitive(name = "original_arguments")
+    public abstract static class OriginalArgumentsNode extends PrimitiveArrayArgumentsNode {
+
+        @Specialization
+        protected RubyArray originalArguments(VirtualFrame frame) {
+            return ArrayHelpers.createArray(getContext(), getLanguage(), RubyArguments.getArguments(frame));
+        }
+
+    }
+
+    // This should go away when we fully flatten
+
+    @Primitive(name = "xx_keyword_arguments")
+    public abstract static class XXKeywordArgumentsNode extends PrimitiveArrayArgumentsNode {
+
+        @Specialization
+        protected RubyArray keywordArguments(VirtualFrame frame) {
+            return ArrayHelpers.createArray(getContext(), getLanguage(), RubyArguments.getKeywordArgumentsValues(frame));
         }
 
     }
