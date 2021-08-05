@@ -106,7 +106,7 @@ public final class RubyArguments {
     }
 
     private static int getIndexOfKeywordArguments(Object[] arguments) {
-        for (int i = 0; i < arguments.length; i++) {
+        for (int i = arguments.length - 1; i >= 0; i--) {
             if (arguments[i] instanceof RubyHash) {
                 return i;
             }
