@@ -10,6 +10,7 @@
 package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.RubyHash;
@@ -105,6 +106,7 @@ public final class RubyArguments {
         return packed;
     }
 
+    @TruffleBoundary
     private static int getIndexOfKeywordArguments(Object[] arguments) {
         for (int i = arguments.length - 1; i >= 0; i--) {
             if (arguments[i] instanceof RubyHash) {
@@ -113,6 +115,8 @@ public final class RubyArguments {
         }
         return -1;
     }
+
+    @TruffleBoundary
     private static Object[] getKeywordArgumentsValues(RubyHash arguments) {
         ArrayList<Object> values = new ArrayList<>();
 
