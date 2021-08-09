@@ -42,8 +42,7 @@ public final class RubyArguments {
         FRAME_ON_STACK_MARKER, // 4
         SELF, // 5
         BLOCK, // 6
-        KEYWORD_ARGUMENTS_DESCRIPTOR, // 7
-        KEYWORD_ARGUMENTS_VALUES, // 8
+        KEYWORD_ARGUMENTS_DESCRIPTOR // 7
     }
 
     private static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
@@ -83,16 +82,16 @@ public final class RubyArguments {
         assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, keywordArgumentsDescriptor, arguments);
 
         assert keywordArgumentsDescriptor != null;
-        Object[] argumentValues;
+        Object[] keywordArgumentValues;
         int hashIndex = getIndexOfKeywordArguments(arguments);
         if (keywordArgumentsDescriptor.getLength() > 0 && hashIndex >= 0) {
-            argumentValues = getKeywordArgumentsValues((RubyHash) arguments[hashIndex], keywordArgumentsDescriptor);
+            keywordArgumentValues = getKeywordArgumentsValues((RubyHash) arguments[hashIndex], keywordArgumentsDescriptor);
         } else {
-            argumentValues = new Object[]{};
+            keywordArgumentValues = new Object[]{};
         }
-        assert argumentValues.length == keywordArgumentsDescriptor.getLength();
+        assert keywordArgumentValues.length == keywordArgumentsDescriptor.getLength();
 
-        final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
+        final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length + keywordArgumentValues.length];
         packed[ArgumentIndicies.DECLARATION_FRAME.ordinal()] = declarationFrame;
         packed[ArgumentIndicies.CALLER_FRAME_OR_VARIABLES.ordinal()] = callerFrameOrVariables;
         packed[ArgumentIndicies.METHOD.ordinal()] = method;
@@ -101,8 +100,8 @@ public final class RubyArguments {
         packed[ArgumentIndicies.SELF.ordinal()] = self;
         packed[ArgumentIndicies.BLOCK.ordinal()] = block;
         packed[ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()] = keywordArgumentsDescriptor;
-        packed[ArgumentIndicies.KEYWORD_ARGUMENTS_VALUES.ordinal()] = argumentValues;
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
+        ArrayUtils.arraycopy(keywordArgumentValues, 0, packed, RUNTIME_ARGUMENT_COUNT + arguments.length, keywordArgumentValues.length);
 
         return packed;
     }
@@ -243,26 +242,33 @@ public final class RubyArguments {
     }
 
     public static Object[] getKeywordArgumentsValues(Frame frame) {
-        return (Object[]) frame.getArguments()[ArgumentIndicies.KEYWORD_ARGUMENTS_VALUES.ordinal()];
+        KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
+        Object[] arguments = frame.getArguments();
+        return ArrayUtils.extractRange(arguments, arguments.length - descriptor.getLength(), arguments.length);
     }
 
     public static int getArgumentsCount(Frame frame) {
-        return frame.getArguments().length - RUNTIME_ARGUMENT_COUNT;
+        KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
+        Object[] arguments = frame.getArguments();
+        return arguments.length - RUNTIME_ARGUMENT_COUNT - descriptor.getLength();
     }
 
     public static Object getArgument(Frame frame, int index) {
-        assert index >= 0 && index < (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT);
+        KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
+        assert index >= 0 && index < (frame.getArguments().length - RUNTIME_ARGUMENT_COUNT - descriptor.getLength());
         return frame.getArguments()[RUNTIME_ARGUMENT_COUNT + index];
     }
 
     public static Object[] getArguments(Frame frame) {
+        KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
         Object[] arguments = frame.getArguments();
-        return ArrayUtils.extractRange(arguments, RUNTIME_ARGUMENT_COUNT, arguments.length);
+        return ArrayUtils.extractRange(arguments, RUNTIME_ARGUMENT_COUNT, arguments.length - descriptor.getLength());
     }
 
     public static Object[] getArguments(Frame frame, int start) {
+        KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
         Object[] arguments = frame.getArguments();
-        return ArrayUtils.extractRange(arguments, RUNTIME_ARGUMENT_COUNT + start, arguments.length);
+        return ArrayUtils.extractRange(arguments, RUNTIME_ARGUMENT_COUNT + start, arguments.length - descriptor.getLength());
     }
 
     // Getters for the declaration frame that let you reach up several levels
