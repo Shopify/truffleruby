@@ -17,6 +17,7 @@ import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.hash.library.PackedHashStoreLibrary;
 import org.truffleruby.core.proc.RubyProc;
 import org.truffleruby.core.string.StringUtils;
+import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.FrameAndVariables;
 import org.truffleruby.language.Nil;
 import org.truffleruby.language.RubyBaseNode;
@@ -81,8 +82,17 @@ public final class RubyArguments {
             Object[] arguments) {
         assert assertValues(callerFrameOrVariables, method, declarationContext, self, block, keywordArgumentsDescriptor, arguments);
 
-        final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
+        assert keywordArgumentsDescriptor != null;
+        Object[] argumentValues;
+        int hashIndex = getIndexOfKeywordArguments(arguments);
+        if (keywordArgumentsDescriptor.getLength() > 0 && hashIndex >= 0) {
+            argumentValues = getKeywordArgumentsValues((RubyHash) arguments[hashIndex], keywordArgumentsDescriptor);
+        } else {
+            argumentValues = new Object[]{};
+        }
+        assert argumentValues.length == keywordArgumentsDescriptor.getLength();
 
+        final Object[] packed = new Object[RUNTIME_ARGUMENT_COUNT + arguments.length];
         packed[ArgumentIndicies.DECLARATION_FRAME.ordinal()] = declarationFrame;
         packed[ArgumentIndicies.CALLER_FRAME_OR_VARIABLES.ordinal()] = callerFrameOrVariables;
         packed[ArgumentIndicies.METHOD.ordinal()] = method;
@@ -91,16 +101,7 @@ public final class RubyArguments {
         packed[ArgumentIndicies.SELF.ordinal()] = self;
         packed[ArgumentIndicies.BLOCK.ordinal()] = block;
         packed[ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()] = keywordArgumentsDescriptor;
-
-        Object[] argumentValues;
-        int hashIndex = getIndexOfKeywordArguments(arguments);
-        if (hashIndex >= 0) {
-            argumentValues = getKeywordArgumentsValues((RubyHash) arguments[hashIndex]);
-        } else {
-            argumentValues = null;
-        }
         packed[ArgumentIndicies.KEYWORD_ARGUMENTS_VALUES.ordinal()] = argumentValues;
-
         ArrayUtils.arraycopy(arguments, 0, packed, RUNTIME_ARGUMENT_COUNT, arguments.length);
 
         return packed;
@@ -117,22 +118,36 @@ public final class RubyArguments {
     }
 
     @TruffleBoundary
-    private static Object[] getKeywordArgumentsValues(RubyHash arguments) {
-        ArrayList<Object> values = new ArrayList<>();
+    private static Object[] getKeywordArgumentsValues(RubyHash arguments, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
+        final Object[] values = new Object[keywordArgumentsDescriptor.getLength()];
 
         Entry entry = arguments.firstInSequence;
         if (entry != null) {
             while (entry != null) {
-                values.add(entry.getValue());
+                for (int n = 0; n < keywordArgumentsDescriptor.getLength(); n++) {
+                    Object key = entry.getKey();
+                    if (key instanceof RubySymbol && keywordArgumentsDescriptor.getKeywords()[n].equals(((RubySymbol) key).getString())) {
+                        values[n]= entry.getValue();
+                        break;
+                    }
+                }
+
                 entry = entry.getNextInSequence();
             }
         } else if ((arguments.store != null) && (arguments.store instanceof Object[])) {
             Object[] store = (Object[]) arguments.store;
-            for (int n = 0; n < arguments.size; n ++) {
-                values.add(store[n * PackedHashStoreLibrary.ELEMENTS_PER_ENTRY + 2]);
+            for (int i = 0; i < arguments.size; i++) {
+                for (int n = 0; n < keywordArgumentsDescriptor.getLength(); n++) {
+                    Object key = store[i * PackedHashStoreLibrary.ELEMENTS_PER_ENTRY + 1];
+                    if (key instanceof RubySymbol && keywordArgumentsDescriptor.getKeywords()[n].equals(((RubySymbol) key).getString())) {
+                        values[n] = store[i * PackedHashStoreLibrary.ELEMENTS_PER_ENTRY + 2];
+                        break;
+                    }
+                }
             }
         }
-        return values.toArray();
+
+        return values;
     }
 
     public static boolean assertValues(

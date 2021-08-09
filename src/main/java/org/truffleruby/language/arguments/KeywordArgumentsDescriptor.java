@@ -128,4 +128,19 @@ public class KeywordArgumentsDescriptor {
     public String[] getKeywords() {
         return keywords;
     }
+
+    public boolean isEmpty() { return keywords.length == 0; }
+
+    public int getLength() {
+        return keywords.length;
+    }
+
+    public int indexOf(String keyword) {
+        for (int n = 0; n < keywords.length; n++) {
+            if (keyword.equals(keywords[n])) {
+                return n;
+            }
+        }
+        return -1;
+    }
 }

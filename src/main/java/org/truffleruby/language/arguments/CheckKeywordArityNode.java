@@ -68,7 +68,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         }
 
         if (!arity.hasKeywordsRest() && keywordArguments != null) {
-            checkKeywordArguments(argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame));
+            checkKeywordArguments(argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame), RubyArguments.getKeywordArgumentsDescriptor(frame));
         }
 
         if (keywordArguments != null) {
@@ -92,7 +92,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         }
     }
 
-    void checkKeywordArguments(int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues) {
+    void checkKeywordArguments(int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
         if (hashes == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             hashes = insert(HashStoreLibrary.createDispatched());
@@ -100,12 +100,19 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         //if (checkKeywordArgumentsNode == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
         // TODO this lambda node needs to know about the flattened keyword argument values, so it needs to be created per call
-            checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity, keywordArgumentsValues));
+            checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity, keywordArgumentsValues) {
+
+                @Override
+                protected KeywordArgumentsDescriptor getDescriptor() {
+                    return keywordArgumentsDescriptor;
+                }
+
+            });
         //}
         hashes.eachEntry(keywordArguments.store, keywordArguments, checkKeywordArgumentsNode, argumentsCount);
     }
 
-    private static class CheckKeywordArgumentsNode extends RubyContextNode implements EachEntryCallback {
+    private abstract static class CheckKeywordArgumentsNode extends RubyContextNode implements EachEntryCallback {
 
         private final boolean doesNotAcceptExtraArguments;
         private final int required;
@@ -133,7 +140,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
                             getContext(),
                             coreExceptions().argumentErrorUnknownKeyword((RubySymbol) key, this));
                 }
-                checkValueIsInArgumentsValueArray(index, value);
+                checkValueIsInArgumentsValueArray(key, index, value);
             } else {
                 // the Hash would be split and a reject Hash be created to hold non-Symbols when there is no **kwrest parameter,
                 // so we need to check if an extra argument is allowed
@@ -146,13 +153,24 @@ public class CheckKeywordArityNode extends RubyBaseNode {
 
         }
 
+        protected abstract KeywordArgumentsDescriptor getDescriptor();
+
         @CompilerDirectives.TruffleBoundary
-        private void checkValueIsInArgumentsValueArray(int index, Object value) {
-            if (value == null) {
+        private void checkValueIsInArgumentsValueArray(Object key, int index, Object value) {
+            // We only pack symbol keys
+            if (!(key instanceof RubySymbol)) {
                 return;
             }
 
-            if (keywordArgumentsValues[index] != value) {
+            // We're only considering keys in the descriptor
+            final String keyword = ((RubySymbol) key).getString();
+            int packedIndex = getDescriptor().indexOf(keyword);
+            if (packedIndex == -1) {
+                return;
+            }
+
+            // Check the packed value is the same as the value from the hash
+            if (keywordArgumentsValues[packedIndex] != value) {
                 throw new IllegalArgumentException("optimised " + keywordArgumentsValues[index] + " original " + value);
             }
         }
