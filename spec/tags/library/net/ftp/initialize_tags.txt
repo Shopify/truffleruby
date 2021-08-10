@@ -1,0 +1,20 @@
+fails:Net::FTP#initialize when the host is set and port option is set tries to connect to the host on the specified port
+fails:Net::FTP#initialize when the host is set when the username option is set and the password option is set and the account option is set tries to log in with the supplied parameters
+fails:Net::FTP#initialize when the host is set when the username option is set and the password option is set and the account option is unset tries to log in with the supplied parameters
+fails:Net::FTP#initialize when the host is set when the username option is set and the password option is unset and the account option is set tries to log in with the supplied parameters
+fails:Net::FTP#initialize when the host is set when the username option is set and the password option is unset and the account option is unset tries to log in with the supplied parameters
+fails:Net::FTP#initialize when the host is set when the username option is not set does not try to log in
+fails:Net::FTP#initialize when the passive option is set to true sets passive to true
+fails:Net::FTP#initialize when the passive option is set to false sets passive to false
+fails:Net::FTP#initialize when the debug_mode option is set to true sets debug_mode to true
+fails:Net::FTP#initialize when the debug_mode option is set to false sets debug_mode to false
+fails:Net::FTP#initialize when the open_timeout option is set sets open_timeout to the specified value
+fails:Net::FTP#initialize when the read_timeout option is set sets read_timeout to the specified value
+fails:Net::FTP#initialize when the ssl_handshake_timeout option is set sets ssl_handshake_timeout to the specified value
+fails:Net::FTP#initialize when the ssl option is set and the ssl option's value is true initializes ssl_context to a blank SSLContext object
+fails:Net::FTP#initialize when the ssl option is set and the ssl option's value is a hash initializes ssl_context to a configured SSLContext object
+fails:Net::FTP#initialize when the ssl option is set and private_data_connection is set sets private_data_connection to that value
+fails:Net::FTP#initialize when the ssl option is set and private_data_connection is not set sets private_data_connection to nil
+fails:Net::FTP#initialize when the ssl option is not set sets ssl_context to nil
+fails:Net::FTP#initialize when the ssl option is not set private_data_connection is set raises an ArgumentError
+fails:Net::FTP#initialize when the ssl option is not set private_data_connection is not set sets private_data_connection to false

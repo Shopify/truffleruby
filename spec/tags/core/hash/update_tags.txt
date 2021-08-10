@@ -1,0 +1,2 @@
+fails:Hash#update tries to convert the passed argument to a hash using #to_hash
+fails:Hash#update checks frozen status before coercing an object with #to_hash
