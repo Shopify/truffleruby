@@ -792,6 +792,10 @@ public class LoadArgumentsTranslator extends Translator {
         index = arraySlotStack.pop().getPreviousIndex();
     }
 
+    public int getRequired() {
+        return required;
+    }
+
     protected boolean useArray() {
         return !arraySlotStack.isEmpty();
     }

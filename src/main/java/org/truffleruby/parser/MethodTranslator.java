@@ -26,6 +26,7 @@ import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyProcRootNode;
 import org.truffleruby.language.SourceIndexLength;
 import org.truffleruby.language.arguments.MissingArgumentBehavior;
+import org.truffleruby.language.arguments.ReadDescriptorArgumentNode;
 import org.truffleruby.language.arguments.ReadPreArgumentNode;
 import org.truffleruby.language.arguments.ShouldDestructureNode;
 import org.truffleruby.language.control.AndNode;
@@ -393,13 +394,15 @@ public class MethodTranslator extends BodyTranslator {
         // Load positional keyword arguments
         final RubyNode loadArguments = translator.translateNonKeywordArguments();
 
-        // We will eventually create a node here to look at the descriptor...
+        // TODO: We will eventually create a node here to look at the descriptor...
         //     But first load keywords arguments
-        final RubyNode loadKeywordArguments = translator.translateKeywordArguments();
+        final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
+
+        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired());
 
         RubyNode body = translateNodeOrNil(sourceSection, bodyNode).simplifyAsTailExpression();
 
-        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), loadArguments, loadKeywordArguments, body));
+        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), loadArguments, oldLoadKeywordArguments, newLoadKeywordArguments, body));
 
         if (environment.getFlipFlopStates().size() > 0) {
             body = sequence(sourceSection, Arrays.asList(initFlipFlopStates(environment, sourceSection), body));
