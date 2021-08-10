@@ -2,6 +2,7 @@ package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.Frame;
+import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.library.CachedLibrary;
 import org.truffleruby.RubyLanguage;
@@ -11,16 +12,25 @@ import org.truffleruby.core.hash.library.EmptyHashStore;
 import org.truffleruby.core.hash.library.HashStoreLibrary;
 import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.RubyContextSourceNode;
+import org.truffleruby.language.RubyNode;
+import org.truffleruby.language.locals.WriteLocalVariableNode;
+import org.truffleruby.parser.MethodTranslator;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode implements PEBiFunction {
 
     @Child private ReadUserKeywordsHashNode readHash;
-    public static ReadDescriptorArgumentNode create(int minimum) {
-        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum));
+    private MethodTranslator translator;
+
+    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator) {
+        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator);
     }
 
-    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash) {
+    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator) {
         this.readHash = readHash;
+        this.translator = translator;
     }
 
     @Override
@@ -55,7 +65,12 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
             assert optimizedValue == actualValue : "the optimizedValue: " + optimizedValue + " actualValue: " + actualValue;
             keywordArgValueIndex++;
 
-            // TODO: Later, we'll store the optimizedValue into the local var with WriteLocalVariableNode
+            // Store the optimizedValue into the local var with WriteLocalVariableNode
+            final FrameSlot slot = translator.getEnvironment().declareVar(keyword);
+            final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(optimizedValue);
+            final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
+            insert(writeNode);
+            writeNode.execute(frame);
         }
 
         // TODO: In the future we'll then also want to store default values for keywords not in the descriptor at this point
