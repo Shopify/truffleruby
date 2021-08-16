@@ -1,5 +1,7 @@
 package org.truffleruby.language.arguments;
 
+import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.dsl.Fallback;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.FrameSlot;
@@ -15,65 +17,82 @@ import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.locals.WriteLocalVariableNode;
 import org.truffleruby.parser.MethodTranslator;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.truffleruby.parser.ast.ArgsParseNode;
+import org.truffleruby.parser.ast.OptArgParseNode;
+import org.truffleruby.parser.ast.ParseNode;
 
 public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode implements PEBiFunction {
 
+    private ArgsParseNode argsNode;
     @Child private ReadUserKeywordsHashNode readHash;
     private MethodTranslator translator;
 
-    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator) {
-        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator);
+    public static ReadDescriptorArgumentNode create(ArgsParseNode argsNode, int minimum, MethodTranslator translator) {
+        return ReadDescriptorArgumentNodeGen.create(argsNode, new ReadUserKeywordsHashNode(minimum), translator);
     }
 
-    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator) {
+    protected ReadDescriptorArgumentNode(ArgsParseNode argsNode, ReadUserKeywordsHashNode readHash, MethodTranslator translator) {
+        this.argsNode = argsNode;
         this.readHash = readHash;
         this.translator = translator;
     }
 
-    @Override
-    public final Object execute(VirtualFrame frame) {
-        return execute(frame, readHash.execute(frame));
-    }
+    public abstract Object execute(VirtualFrame frame);
 
-    public abstract Object execute(VirtualFrame frame, RubyHash hash);
+    @Specialization
+    protected Object lookupKeywordInDescriptor(VirtualFrame frame) {
+        CompilerDirectives.transferToInterpreter();
 
-    @Specialization(guards = "hash == null")
-    protected Object nullHash(VirtualFrame frame, RubyHash hash) {
-        return null;
-    }
-
-    @Specialization(guards = "hash != null", limit = "3")
-    protected Object lookupKeywordInDescriptor(VirtualFrame frame, RubyHash hash,
-                                         @CachedLibrary("getHashStore(hash)") HashStoreLibrary hashes) {
         final String[] keywords = RubyArguments.getKeywordArgumentsDescriptor(frame).getKeywords();
         Object[] values = RubyArguments.getKeywordArgumentsValues(frame);
         int keywordArgValueIndex = values.length - keywords.length;
 
-        for (int n = 0; n < keywords.length; n++) {
+        if (keywords.length > 0) {
+            // TODO: Instead of loading defaults first, iterate through all values together
+            ParseNode[] args = argsNode.getArgs();
+            if (argsNode.getOptionalArgsCount() > 0) {
+                final int optionalIndex = argsNode.getOptArgIndex();
+                final int optionalCount = argsNode.getOptionalArgsCount();
 
-            // Optimized way of attaining kw and value
-            String keyword = keywords[n];
-            Object optimizedValue = values[keywordArgValueIndex];
+                for (int i = 0; i < optionalCount; i++) {
+                    OptArgParseNode optionalKwNode = ((OptArgParseNode) args[optionalIndex + i]);
+                    ParseNode value = (ParseNode) optionalKwNode.getValue().childNodes().toArray()[0]; // Extract the default value
+                    RubyNode translated = value.accept(translator);
+                    insert(translated);
+                    translated.execute(frame);
+                }
+            }
 
-            // Old way of attaining value
-            Object actualValue = hashes.lookupOrDefault(hash.store, frame, hash, keywordAsSymbols(getLanguage(), keyword), this);
+            // Only read the hash if there are keywords arguments
+            final RubyHash hash = readHash.execute(frame);
 
-            // Compare the two values
-            assert optimizedValue == actualValue : "the optimizedValue: " + optimizedValue + " actualValue: " + actualValue;
-            keywordArgValueIndex++;
+            // Previously this was its own specialization
+            // We want to keep it simple
+            if (hash == null) {
+                return null;
+            }
 
-            // Store the optimizedValue into the local var with WriteLocalVariableNode
-            final FrameSlot slot = translator.getEnvironment().declareVar(keyword);
-            final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(optimizedValue);
-            final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
-            insert(writeNode);
-            writeNode.execute(frame);
+            for (int n = 0; n < keywords.length; n++) {
+
+                // Optimized way of attaining kw and value
+                String keyword = keywords[n];
+                Object optimizedValue = values[keywordArgValueIndex];
+
+                // Old way of attaining value
+                Object actualValue = HashStoreLibrary.getUncached().lookupOrDefault(hash.store, frame, hash, keywordAsSymbols(getLanguage(), keyword), this);
+
+                // Compare the two values
+                assert optimizedValue == actualValue : "the optimizedValue: " + optimizedValue + " actualValue: " + actualValue;
+                keywordArgValueIndex++;
+
+                // Store the optimizedValue into the local var with WriteLocalVariableNode
+                final FrameSlot slot = translator.getEnvironment().declareVar(keyword);
+                final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(optimizedValue);
+                final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
+                insert(writeNode);
+                writeNode.execute(frame);
+            }
         }
-
-        // TODO: In the future we'll then also want to store default values for keywords not in the descriptor at this point
         return null;
     }
 

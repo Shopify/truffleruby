@@ -398,11 +398,11 @@ public class MethodTranslator extends BodyTranslator {
         //     But first load keywords arguments
         final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
 
-        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), this);
+        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(argsNode, translator.getRequired(), this);
 
         RubyNode body = translateNodeOrNil(sourceSection, bodyNode).simplifyAsTailExpression();
 
-        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), loadArguments, oldLoadKeywordArguments, newLoadKeywordArguments, body));
+        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), oldLoadKeywordArguments, newLoadKeywordArguments, loadArguments, body));
 
         if (environment.getFlipFlopStates().size() > 0) {
             body = sequence(sourceSection, Arrays.asList(initFlipFlopStates(environment, sourceSection), body));
