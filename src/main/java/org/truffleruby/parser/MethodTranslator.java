@@ -228,9 +228,7 @@ public class MethodTranslator extends BodyTranslator {
                     this);
             destructureArgumentsTranslator.pushArraySlot(arraySlot);
 
-            final RubyNode newDestructureArguments = destructureArgumentsTranslator.translateNonKeywordArguments();
-            final RubyNode newDestructureKwArguments = destructureArgumentsTranslator.translateKeywordArguments();
-            final RubyNode allDestructureArguments = sequence(sourceSection, Arrays.asList(newDestructureArguments, newDestructureKwArguments));
+            final RubyNode allDestructureArguments = loadArguments(sourceSection, destructureArgumentsTranslator);
 
             final RubyNode arrayWasNotNil = sequence(
                     sourceSection,
