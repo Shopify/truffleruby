@@ -48,21 +48,6 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
         int keywordArgValueIndex = values.length - keywords.length;
 
         if (keywords.length > 0) {
-            // TODO: Instead of loading defaults first, iterate through all values together
-            ParseNode[] args = argsNode.getArgs();
-            if (argsNode.getOptionalArgsCount() > 0) {
-                final int optionalIndex = argsNode.getOptArgIndex();
-                final int optionalCount = argsNode.getOptionalArgsCount();
-
-                for (int i = 0; i < optionalCount; i++) {
-                    OptArgParseNode optionalKwNode = ((OptArgParseNode) args[optionalIndex + i]);
-                    ParseNode value = (ParseNode) optionalKwNode.getValue().childNodes().toArray()[0]; // Extract the default value
-                    RubyNode translated = value.accept(translator);
-                    insert(translated);
-                    translated.execute(frame);
-                }
-            }
-
             // Only read the hash if there are keywords arguments
             final RubyHash hash = readHash.execute(frame);
 

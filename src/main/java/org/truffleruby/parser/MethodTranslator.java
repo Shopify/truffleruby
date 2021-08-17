@@ -9,9 +9,12 @@
  */
 package org.truffleruby.parser;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Supplier;
 
+import org.graalvm.collections.Pair;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.collections.CachedSupplier;
 import org.truffleruby.core.IsNilNode;
@@ -25,8 +28,10 @@ import org.truffleruby.language.RubyMethodRootNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyProcRootNode;
 import org.truffleruby.language.SourceIndexLength;
+import org.truffleruby.language.arguments.CheckRequiredKeywordArgumentNode;
 import org.truffleruby.language.arguments.MissingArgumentBehavior;
 import org.truffleruby.language.arguments.ReadDescriptorArgumentNode;
+import org.truffleruby.language.arguments.ReadKeywordArgumentNode;
 import org.truffleruby.language.arguments.ReadPreArgumentNode;
 import org.truffleruby.language.arguments.ShouldDestructureNode;
 import org.truffleruby.language.control.AndNode;
@@ -36,6 +41,7 @@ import org.truffleruby.language.control.InvalidReturnNode;
 import org.truffleruby.language.control.NotNode;
 import org.truffleruby.language.control.ReturnID;
 import org.truffleruby.language.control.SequenceNode;
+import org.truffleruby.language.literal.ObjectLiteralNode;
 import org.truffleruby.language.locals.FlipFlopStateNode;
 import org.truffleruby.language.locals.LocalVariableType;
 import org.truffleruby.language.locals.ReadLocalVariableNode;
@@ -115,7 +121,7 @@ public class MethodTranslator extends BodyTranslator {
             arityForCheck = arity;
         }
 
-        final RubyNode loadArguments = new LoadArgumentsTranslator(
+        final RubyNode loadArguments = loadArguments(sourceSection, new LoadArgumentsTranslator(
                 currentNode,
                 argsNode,
                 language,
@@ -123,7 +129,7 @@ public class MethodTranslator extends BodyTranslator {
                 parserContext,
                 !isStabbyLambda,
                 false,
-                this).translate();
+                this));
 
         final RubyNode preludeProc = !isStabbyLambda
                 ? preludeProc(sourceSection, isStabbyLambda, arity, loadArguments)
@@ -391,6 +397,20 @@ public class MethodTranslator extends BodyTranslator {
                 true,
                 this);
 
+        RubyNode loadArguments = loadArguments(sourceSection, translator);
+
+        RubyNode body = translateNodeOrNil(sourceSection, bodyNode).simplifyAsTailExpression();
+
+        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), loadArguments, body));
+
+        if (environment.getFlipFlopStates().size() > 0) {
+            body = sequence(sourceSection, Arrays.asList(initFlipFlopStates(environment, sourceSection), body));
+        }
+
+        return body;
+    }
+
+    RubyNode loadArguments(SourceIndexLength sourceSection, LoadArgumentsTranslator translator) {
         // Load positional keyword arguments
         final RubyNode loadArguments = translator.translateNonKeywordArguments();
 
@@ -400,15 +420,19 @@ public class MethodTranslator extends BodyTranslator {
 
         final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(argsNode, translator.getRequired(), this);
 
-        RubyNode body = translateNodeOrNil(sourceSection, bodyNode).simplifyAsTailExpression();
-
-        body = sequence(sourceSection, Arrays.asList(new MakeSpecialVariableStorageNode(), oldLoadKeywordArguments, newLoadKeywordArguments, loadArguments, body));
-
-        if (environment.getFlipFlopStates().size() > 0) {
-            body = sequence(sourceSection, Arrays.asList(initFlipFlopStates(environment, sourceSection), body));
+        final List<RubyNode> assignEmptyNodes = new ArrayList<>();
+        final List<RubyNode> assignDefaultNodes = new ArrayList<>();
+        for (Pair<FrameSlot, RubyNode> defaultPair : translator.defaults) {
+            assignEmptyNodes.add(new WriteLocalVariableNode(defaultPair.getLeft(), new ObjectLiteralNode(language.symbolTable.getSymbol("missing_default_keyword_argument"))));
+            assignDefaultNodes.add(new CheckRequiredKeywordArgumentNode(defaultPair.getLeft(), defaultPair.getRight()));
         }
 
-        return body;
+        return sequence(sourceSection, Arrays.asList(
+                loadArguments,                                  // load positional arguments
+                sequence(sourceSection, assignEmptyNodes),      // set all optional keyword arguments to :missing_default_keyword_argument
+                oldLoadKeywordArguments,                        // do the old-style load of keyword arguments (except it doesn't run defaults - it leaves them set to :missing_default_keyword_argument)
+                newLoadKeywordArguments,                        // do the new-style load of keyword arguments
+                sequence(sourceSection, assignDefaultNodes)));  // for any optional keyword argument still set to :missing_default_keyword_argument, run its default expression
     }
 
     private RubyMethodRootNode translateMethodNode(SourceIndexLength sourceSection, MethodDefParseNode defNode,

@@ -16,6 +16,7 @@ import java.util.Deque;
 import java.util.List;
 
 import com.oracle.truffle.api.frame.FrameSlotKind;
+import org.graalvm.collections.Pair;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.IsNilNode;
 import org.truffleruby.core.array.ArrayIndexNodes;
@@ -40,6 +41,7 @@ import org.truffleruby.language.arguments.SaveMethodBlockNode;
 import org.truffleruby.language.control.IfElseNode;
 import org.truffleruby.language.control.IfNode;
 import org.truffleruby.language.literal.NilLiteralNode;
+import org.truffleruby.language.literal.ObjectLiteralNode;
 import org.truffleruby.language.locals.LocalVariableType;
 import org.truffleruby.language.locals.ReadLocalVariableNode;
 import org.truffleruby.language.locals.WriteLocalVariableNode;
@@ -448,6 +450,8 @@ public class LoadArgumentsTranslator extends Translator {
         return new WriteLocalVariableNode(slot, readNode);
     }
 
+    public List<Pair<FrameSlot, RubyNode>> defaults = new ArrayList<>();
+
     @Override
     public RubyNode visitKeywordArgNode(KeywordArgParseNode node) {
         final SourceIndexLength sourceSection = node.getPosition();
@@ -464,8 +468,10 @@ public class LoadArgumentsTranslator extends Translator {
         } else {
             defaultValue = translateNodeOrNil(sourceSection, asgnNode.getValueNode());
         }
+        defaults.add(Pair.create(slot, defaultValue));
 
-        final RubyNode readNode = ReadKeywordArgumentNode.create(required, language.getSymbol(name), defaultValue);
+        // We use a symbol for the moment as the default marker, because it's easier to debug
+        final RubyNode readNode = ReadKeywordArgumentNode.create(required, language.getSymbol(name), new ObjectLiteralNode(language.symbolTable.getSymbol("missing_default_keyword_argument")));
 
         return new WriteLocalVariableNode(slot, readNode);
     }
