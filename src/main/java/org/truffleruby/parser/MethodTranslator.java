@@ -23,6 +23,7 @@ import org.truffleruby.core.cast.SplatCastNode.NilBehavior;
 import org.truffleruby.core.cast.SplatCastNodeGen;
 import org.truffleruby.core.proc.ProcCallTargets;
 import org.truffleruby.core.proc.ProcType;
+import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.RubyLambdaRootNode;
 import org.truffleruby.language.RubyMethodRootNode;
 import org.truffleruby.language.RubyNode;
@@ -226,9 +227,11 @@ public class MethodTranslator extends BodyTranslator {
                     false,
                     this);
             destructureArgumentsTranslator.pushArraySlot(arraySlot);
+
             final RubyNode newDestructureArguments = destructureArgumentsTranslator.translateNonKeywordArguments();
             final RubyNode newDestructureKwArguments = destructureArgumentsTranslator.translateKeywordArguments();
             final RubyNode allDestructureArguments = sequence(sourceSection, Arrays.asList(newDestructureArguments, newDestructureKwArguments));
+
             final RubyNode arrayWasNotNil = sequence(
                     sourceSection,
                     Arrays.asList(
@@ -423,7 +426,8 @@ public class MethodTranslator extends BodyTranslator {
         final List<RubyNode> assignDefaultNodes = new ArrayList<>();
         for (Pair<FrameSlot, RubyNode> defaultPair : translator.defaults) {
             assignEmptyNodes.add(new WriteLocalVariableNode(defaultPair.getLeft(), new ObjectLiteralNode(language.symbolTable.getSymbol("missing_default_keyword_argument"))));
-            assignDefaultNodes.add(new CheckKeywordArgumentNode(defaultPair.getLeft(), defaultPair.getRight()));
+            final RubySymbol symbol = language.getSymbol((String) defaultPair.getLeft().getIdentifier());
+            assignDefaultNodes.add(new CheckKeywordArgumentNode(symbol, defaultPair.getLeft(), defaultPair.getRight(), translator.getRequired()));
         }
 
         return sequence(sourceSection, Arrays.asList(
