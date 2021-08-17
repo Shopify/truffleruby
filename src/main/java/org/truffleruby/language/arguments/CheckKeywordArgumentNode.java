@@ -16,6 +16,7 @@ import org.truffleruby.language.locals.WriteLocalVariableNode;
 public class CheckKeywordArgumentNode extends RubyContextSourceNode implements PEBiFunction {
 
     private final RubySymbol name;
+    private final FrameSlot slot;
 
     @Child ReadLocalVariableNode readLocalVariableNode;
     @Child WriteLocalVariableNode writeDefaultNode;
@@ -23,6 +24,7 @@ public class CheckKeywordArgumentNode extends RubyContextSourceNode implements P
 
     public CheckKeywordArgumentNode(RubySymbol name, FrameSlot slot, RubyNode defaultValue, int minimum) {
         this.name = name;
+        this.slot = slot;
         readLocalVariableNode = new ReadLocalVariableNode(LocalVariableType.FRAME_LOCAL, slot);
         writeDefaultNode = new WriteLocalVariableNode(slot, defaultValue);
         readUserKeywordsHashNode = new ReadUserKeywordsHashNode(minimum);
@@ -32,9 +34,10 @@ public class CheckKeywordArgumentNode extends RubyContextSourceNode implements P
     public Object execute(VirtualFrame frame) {
         Object value = readLocalVariableNode.execute(frame);
 
+        // If the keyword parameter is still :missing_default_keyword_argument then we've still got some fixing up to do
         if (value == getLanguage().symbolTable.getSymbol("missing_default_keyword_argument")) {
+            // See if we can get the keyword argument from the hash
             final RubyHash hash = readUserKeywordsHashNode.execute(frame);
-
             if (hash == null) {
                 value = null;
             } else {
@@ -43,7 +46,15 @@ public class CheckKeywordArgumentNode extends RubyContextSourceNode implements P
             }
 
             if (value == null) {
+                // If we still have no value, we run the default - the default may be an action to raise an exception
+                // if the keyword parameter was required.
                 writeDefaultNode.execute(frame);
+            } else {
+                // We found a value for the parameter in the hash, so store it in the local.
+                final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(value);
+                final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
+                insert(writeNode);
+                writeNode.execute(frame);
             }
         }
 
