@@ -27,6 +27,7 @@ import org.truffleruby.language.dispatch.RubyCallNodeParameters;
 public abstract class InlinedReplaceableNode extends RubyContextSourceNode {
 
     private final RubyCallNodeParameters parameters;
+    private final KeywordArgumentsDescriptor keywordArgumentsDescriptor;
 
     @CompilationFinal(dimensions = 1) protected final Assumption[] assumptions;
 
@@ -37,7 +38,7 @@ public abstract class InlinedReplaceableNode extends RubyContextSourceNode {
             RubyCallNodeParameters callNodeParameters,
             Assumption... assumptions) {
         this.parameters = callNodeParameters;
-
+        this.keywordArgumentsDescriptor = callNodeParameters.getKeywordArgumentsDescriptor();
         this.assumptions = new Assumption[1 + assumptions.length];
         this.assumptions[0] = language.traceFuncUnusedAssumption.getAssumption();
         ArrayUtils.arraycopy(assumptions, 0, this.assumptions, 1, assumptions.length);
@@ -55,7 +56,7 @@ public abstract class InlinedReplaceableNode extends RubyContextSourceNode {
                 RubyCallNode callNode = new RubyCallNode(parameters.withReceiverAndArguments(
                         getReceiverNode(),
                         getArgumentNodes(),
-                        KeywordArgumentsDescriptor.EMPTY, // TODO
+                        keywordArgumentsDescriptor,
                         getBlockNode()));
                 callNode.unsafeSetSourceSection(getSourceIndexLength());
                 replacedBy = callNode;
