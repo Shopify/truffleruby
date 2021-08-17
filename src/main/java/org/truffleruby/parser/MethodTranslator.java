@@ -418,7 +418,7 @@ public class MethodTranslator extends BodyTranslator {
         //     But first load keywords arguments
         final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
 
-        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(argsNode, translator.getRequired(), this);
+        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), this);
 
         final List<RubyNode> assignEmptyNodes = new ArrayList<>();
         final List<RubyNode> assignDefaultNodes = new ArrayList<>();
