@@ -129,7 +129,7 @@ public class LoadArgumentsTranslator extends Translator {
     public RubyNode translateKeywordArguments() {
         final SourceIndexLength sourceSection = argsNode.getPosition();
         final List<RubyNode> sequence = new ArrayList<>();
-        sequence.add(loadSelf(language, methodBodyTranslator.getEnvironment()));
+//        sequence.add(loadSelf(language, methodBodyTranslator.getEnvironment()));
         final ParseNode[] args = argsNode.getArgs();
 
         if (hasKeywordArguments) {
@@ -137,7 +137,7 @@ public class LoadArgumentsTranslator extends Translator {
             final int keywordCount = argsNode.getKeywordCount();
 
             for (int i = 0; i < keywordCount; i++) {
-                sequence.add(args[keywordIndex + i].accept(this));
+                args[keywordIndex + i].accept(this);
             }
         }
 

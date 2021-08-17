@@ -305,9 +305,7 @@ public abstract class ClassNodes {
         private DispatchingNode allocateNode() {
             if (allocateNode == null) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
-                allocateNode = insert(new InlinedDispatchNode(
-                        getLanguage(),
-                        BasicObjectNodes.AllocateNode.create()));
+                allocateNode = insert(DispatchNode.create());
             }
             return allocateNode;
         }
@@ -315,9 +313,7 @@ public abstract class ClassNodes {
         private DispatchingNode initialize() {
             if (initialize == null) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
-                initialize = insert(new InlinedDispatchNode(
-                        getLanguage(),
-                        BasicObjectNodes.InitializeNode.create()));
+                initialize = insert(insert(DispatchNode.create()));
             }
             return initialize;
         }
