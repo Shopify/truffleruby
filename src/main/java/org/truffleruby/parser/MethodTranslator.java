@@ -418,15 +418,19 @@ public class MethodTranslator extends BodyTranslator {
         //     But first load keywords arguments
         final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
 
-        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), this);
-
+        final String[] expectedKeywords = new String[translator.defaults.size()];
         final List<RubyNode> assignEmptyNodes = new ArrayList<>();
         final List<RubyNode> assignDefaultNodes = new ArrayList<>();
-        for (Pair<FrameSlot, RubyNode> defaultPair : translator.defaults) {
+        List<Pair<FrameSlot, RubyNode>> defaults = translator.defaults;
+        for (int i = 0, defaultsSize = defaults.size(); i < defaultsSize; i++) {
+            Pair<FrameSlot, RubyNode> defaultPair = defaults.get(i);
+            expectedKeywords[i] = (String) defaultPair.getLeft().getIdentifier();
             assignEmptyNodes.add(new WriteLocalVariableNode(defaultPair.getLeft(), new ObjectLiteralNode(language.symbolTable.getSymbol("missing_default_keyword_argument"))));
             final RubySymbol symbol = language.getSymbol((String) defaultPair.getLeft().getIdentifier());
             assignDefaultNodes.add(new CheckKeywordArgumentNode(symbol, defaultPair.getLeft(), defaultPair.getRight(), translator.getRequired()));
         }
+
+        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), this, expectedKeywords);
 
         return sequence(sourceSection, Arrays.asList(
                 loadArguments,                                  // load positional arguments

@@ -7,26 +7,26 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.collections.PEBiFunction;
 import org.truffleruby.core.hash.RubyHash;
-import org.truffleruby.core.hash.library.EmptyHashStore;
 import org.truffleruby.core.hash.library.HashStoreLibrary;
 import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.locals.WriteLocalVariableNode;
 import org.truffleruby.parser.MethodTranslator;
-import org.truffleruby.parser.ast.ArgsParseNode;
 
 public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode implements PEBiFunction {
 
     @Child private ReadUserKeywordsHashNode readHash;
     private MethodTranslator translator;
+    private String[] expected;
 
-    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator) {
-        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator);
+    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator, String[] expected) {
+        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator, expected);
     }
 
-    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator) {
+    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator, String[] expected) {
         this.readHash = readHash;
         this.translator = translator;
+        this.expected = expected;
     }
 
     public abstract Object execute(VirtualFrame frame);
@@ -60,15 +60,28 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
             assert optimizedValue == actualValue : "the optimizedValue: " + optimizedValue + " actualValue: " + actualValue;
             keywordArgValueIndex++;
 
-            // Store the optimizedValue into the local var with WriteLocalVariableNode
-            final FrameSlot slot = translator.getEnvironment().declareVar(keyword);
-            final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(optimizedValue);
-            final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
-            insert(writeNode);
-            writeNode.execute(frame);
+            // Expected means that the callee expects this keyword argument
+            if (expected(keyword)) {
+                // Store the optimizedValue into the local var with WriteLocalVariableNode
+                final FrameSlot slot = translator.getEnvironment().declareVar(keyword);
+                final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(optimizedValue);
+                final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
+                insert(writeNode);
+                writeNode.execute(frame);
+            }
         }
 
         return null;
+    }
+
+    private boolean expected(String keyword) {
+        for (String expectedKeyword : expected) {
+            if (keyword.equals(expectedKeyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static RubySymbol keywordAsSymbols(RubyLanguage language, String keyword) {
