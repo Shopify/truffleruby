@@ -9,13 +9,13 @@ import org.truffleruby.language.locals.LocalVariableType;
 import org.truffleruby.language.locals.ReadLocalVariableNode;
 import org.truffleruby.language.locals.WriteLocalVariableNode;
 
-public class CheckRequiredKeywordArgumentNode extends RubyContextSourceNode {
+public class CheckKeywordArgumentNode extends RubyContextSourceNode {
 
     @Child ReadLocalVariableNode readLocalVariableNode;
     @Child WriteLocalVariableNode writeLocalVariableNode;
     private final BranchProfile missingProfile = BranchProfile.create();
 
-    public CheckRequiredKeywordArgumentNode(FrameSlot slot, RubyNode defaultValue) {
+    public CheckKeywordArgumentNode(FrameSlot slot, RubyNode defaultValue) {
         readLocalVariableNode = new ReadLocalVariableNode(LocalVariableType.FRAME_LOCAL, slot);
         writeLocalVariableNode = new WriteLocalVariableNode(slot, defaultValue);
     }

@@ -28,10 +28,9 @@ import org.truffleruby.language.RubyMethodRootNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyProcRootNode;
 import org.truffleruby.language.SourceIndexLength;
-import org.truffleruby.language.arguments.CheckRequiredKeywordArgumentNode;
+import org.truffleruby.language.arguments.CheckKeywordArgumentNode;
 import org.truffleruby.language.arguments.MissingArgumentBehavior;
 import org.truffleruby.language.arguments.ReadDescriptorArgumentNode;
-import org.truffleruby.language.arguments.ReadKeywordArgumentNode;
 import org.truffleruby.language.arguments.ReadPreArgumentNode;
 import org.truffleruby.language.arguments.ShouldDestructureNode;
 import org.truffleruby.language.control.AndNode;
@@ -424,15 +423,15 @@ public class MethodTranslator extends BodyTranslator {
         final List<RubyNode> assignDefaultNodes = new ArrayList<>();
         for (Pair<FrameSlot, RubyNode> defaultPair : translator.defaults) {
             assignEmptyNodes.add(new WriteLocalVariableNode(defaultPair.getLeft(), new ObjectLiteralNode(language.symbolTable.getSymbol("missing_default_keyword_argument"))));
-            assignDefaultNodes.add(new CheckRequiredKeywordArgumentNode(defaultPair.getLeft(), defaultPair.getRight()));
+            assignDefaultNodes.add(new CheckKeywordArgumentNode(defaultPair.getLeft(), defaultPair.getRight()));
         }
 
         return sequence(sourceSection, Arrays.asList(
                 loadArguments,                                  // load positional arguments
-                sequence(sourceSection, assignEmptyNodes),      // set all optional keyword arguments to :missing_default_keyword_argument
+                sequence(sourceSection, assignEmptyNodes),      // set all keyword arguments to :missing_default_keyword_argument
                 oldLoadKeywordArguments,                        // do the old-style load of keyword arguments (except it doesn't run defaults - it leaves them set to :missing_default_keyword_argument)
                 newLoadKeywordArguments,                        // do the new-style load of keyword arguments
-                sequence(sourceSection, assignDefaultNodes)));  // for any optional keyword argument still set to :missing_default_keyword_argument, run its default expression
+                sequence(sourceSection, assignDefaultNodes)));  // for any keyword argument still set to :missing_default_keyword_argument, run its default expression
     }
 
     private RubyMethodRootNode translateMethodNode(SourceIndexLength sourceSection, MethodDefParseNode defNode,
