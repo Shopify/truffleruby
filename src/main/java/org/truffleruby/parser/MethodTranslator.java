@@ -11,7 +11,9 @@ package org.truffleruby.parser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.graalvm.collections.Pair;
@@ -418,13 +420,13 @@ public class MethodTranslator extends BodyTranslator {
         //     But first load keywords arguments
         final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
 
-        final String[] expectedKeywords = new String[translator.defaults.size()];
+        final Map<String, FrameSlot> expectedKeywords = new HashMap<>();
         final FrameSlot[] keywordParameterFrameSlots = new FrameSlot[translator.defaults.size()];
         final List<RubyNode> assignDefaultNodes = new ArrayList<>();
         List<Pair<FrameSlot, RubyNode>> defaults = translator.defaults;
         for (int i = 0, defaultsSize = defaults.size(); i < defaultsSize; i++) {
             Pair<FrameSlot, RubyNode> defaultPair = defaults.get(i);
-            expectedKeywords[i] = (String) defaultPair.getLeft().getIdentifier();
+            expectedKeywords.put((String) defaultPair.getLeft().getIdentifier(), defaultPair.getLeft());
             keywordParameterFrameSlots[i] = defaultPair.getLeft();
             final RubySymbol symbol = language.getSymbol((String) defaultPair.getLeft().getIdentifier());
             assignDefaultNodes.add(new CheckKeywordArgumentNode(defaultPair.getLeft(), translator.getRequired(), defaultPair.getRight(), symbol));

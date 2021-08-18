@@ -6,8 +6,9 @@ import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import org.truffleruby.language.RubyContextSourceNode;
-import org.truffleruby.language.locals.WriteLocalVariableNode;
 import org.truffleruby.parser.MethodTranslator;
+
+import java.util.Map;
 
 @NodeChild("descriptor")
 public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
@@ -15,13 +16,13 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
     @Child private ReadUserKeywordsHashNode readHash;
 
     private MethodTranslator translator;
-    private String[] expected;
+    private Map<String, FrameSlot> expected;
 
-    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator, String[] expected) {
+    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator, Map<String, FrameSlot> expected) {
         return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator, expected, new ReadDescriptorNode());
     }
 
-    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator, String[] expected) {
+    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator, Map<String, FrameSlot> expected) {
         this.readHash = readHash;
         this.translator = translator;
         this.expected = expected;
@@ -60,13 +61,10 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
             keywordArgValueIndex++;
 
             // Expected means that the callee expects this keyword argument
-            if (expected(keyword)) {
-                // Store the optimizedValue into the local var with WriteLocalVariableNode
-                final FrameSlot slot = translator.getEnvironment().declareVar(keyword);
-                final ReadDescriptorArgumentValueNode valueNode = new ReadDescriptorArgumentValueNode(optimizedValue);
-                final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
-                insert(writeNode);
-                writeNode.execute(frame);
+            FrameSlot frameSlot = expected.get(keyword);
+            if (frameSlot != null) {
+                // Store the optimizedValue into the local var
+                frame.setObject(frameSlot, optimizedValue);
             } else {
                 // TODO - if there's a kwrest it'll take this value (and it's the job of ReadKeywordRestArgumentNode to handle that)
                 // but if there isn't a kwrest, then at this point we need to report the error! This requirement won't
@@ -75,16 +73,6 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
         }
 
         return null;
-    }
-
-    private boolean expected(String keyword) {
-        for (String expectedKeyword : expected) {
-            if (keyword.equals(expectedKeyword)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
 }
