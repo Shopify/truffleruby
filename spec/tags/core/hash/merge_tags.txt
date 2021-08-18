@@ -1,3 +1,0 @@
-fails:Hash#merge tries to convert the passed argument to a hash using #to_hash
-fails:Hash#merge! tries to convert the passed argument to a hash using #to_hash
-fails:Hash#merge! checks frozen status before coercing an object with #to_hash
