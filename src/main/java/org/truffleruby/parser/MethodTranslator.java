@@ -34,6 +34,7 @@ import org.truffleruby.language.arguments.MissingArgumentBehavior;
 import org.truffleruby.language.arguments.ReadDescriptorArgumentNode;
 import org.truffleruby.language.arguments.ReadPreArgumentNode;
 import org.truffleruby.language.arguments.ShouldDestructureNode;
+import org.truffleruby.language.arguments.WriteMissingKeywordArgumentsNode;
 import org.truffleruby.language.control.AndNode;
 import org.truffleruby.language.control.DynamicReturnNode;
 import org.truffleruby.language.control.IfElseNode;
@@ -419,13 +420,13 @@ public class MethodTranslator extends BodyTranslator {
         final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
 
         final String[] expectedKeywords = new String[translator.defaults.size()];
-        final List<RubyNode> assignEmptyNodes = new ArrayList<>();
+        final FrameSlot[] keywordParameterFrameSlots = new FrameSlot[translator.defaults.size()];
         final List<RubyNode> assignDefaultNodes = new ArrayList<>();
         List<Pair<FrameSlot, RubyNode>> defaults = translator.defaults;
         for (int i = 0, defaultsSize = defaults.size(); i < defaultsSize; i++) {
             Pair<FrameSlot, RubyNode> defaultPair = defaults.get(i);
             expectedKeywords[i] = (String) defaultPair.getLeft().getIdentifier();
-            assignEmptyNodes.add(new WriteLocalVariableNode(defaultPair.getLeft(), new ObjectLiteralNode(language.symbolTable.getSymbol("missing_default_keyword_argument"))));
+            keywordParameterFrameSlots[i] = defaultPair.getLeft();
             final RubySymbol symbol = language.getSymbol((String) defaultPair.getLeft().getIdentifier());
             assignDefaultNodes.add(new CheckKeywordArgumentNode(symbol, defaultPair.getLeft(), defaultPair.getRight(), translator.getRequired()));
         }
@@ -434,7 +435,7 @@ public class MethodTranslator extends BodyTranslator {
 
         return sequence(sourceSection, Arrays.asList(
                 loadArguments,                                  // load positional arguments
-                sequence(sourceSection, assignEmptyNodes),      // set all keyword arguments to :missing_default_keyword_argument
+                new WriteMissingKeywordArgumentsNode(keywordParameterFrameSlots, language.symbolTable.getSymbol("missing_default_keyword_argument")),      // set all keyword arguments to :missing_default_keyword_argument
                 oldLoadKeywordArguments,                        // do the old-style load of keyword arguments (except it doesn't run defaults - it leaves them set to :missing_default_keyword_argument)
                 newLoadKeywordArguments,                        // do the new-style load of keyword arguments
                 sequence(sourceSection, assignDefaultNodes)));  // for any keyword argument still set to :missing_default_keyword_argument, run its default expression
