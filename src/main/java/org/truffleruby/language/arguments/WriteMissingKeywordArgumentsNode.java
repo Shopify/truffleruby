@@ -7,19 +7,19 @@ import org.truffleruby.language.RubyContextSourceNode;
 
 public class WriteMissingKeywordArgumentsNode extends RubyContextSourceNode {
 
-    private final FrameSlot[] frameSlots;
-    private final Object missingValue;
+    public static final Object MISSING = new Object();
 
-    public WriteMissingKeywordArgumentsNode(FrameSlot[] frameSlots, Object missingValue) {
+    private final FrameSlot[] frameSlots;
+
+    public WriteMissingKeywordArgumentsNode(FrameSlot[] frameSlots) {
         this.frameSlots = frameSlots;
-        this.missingValue = missingValue;
     }
 
     @Override
     @ExplodeLoop
     public Object execute(VirtualFrame frame) {
         for (FrameSlot frameSlot : frameSlots) {
-            frame.setObject(frameSlot, missingValue);
+            frame.setObject(frameSlot, MISSING);
         }
         return null;
     }

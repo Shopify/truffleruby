@@ -42,7 +42,6 @@ import org.truffleruby.language.control.InvalidReturnNode;
 import org.truffleruby.language.control.NotNode;
 import org.truffleruby.language.control.ReturnID;
 import org.truffleruby.language.control.SequenceNode;
-import org.truffleruby.language.literal.ObjectLiteralNode;
 import org.truffleruby.language.locals.FlipFlopStateNode;
 import org.truffleruby.language.locals.LocalVariableType;
 import org.truffleruby.language.locals.ReadLocalVariableNode;
@@ -428,14 +427,14 @@ public class MethodTranslator extends BodyTranslator {
             expectedKeywords[i] = (String) defaultPair.getLeft().getIdentifier();
             keywordParameterFrameSlots[i] = defaultPair.getLeft();
             final RubySymbol symbol = language.getSymbol((String) defaultPair.getLeft().getIdentifier());
-            assignDefaultNodes.add(new CheckKeywordArgumentNode(symbol, defaultPair.getLeft(), defaultPair.getRight(), translator.getRequired()));
+            assignDefaultNodes.add(new CheckKeywordArgumentNode(defaultPair.getLeft(), translator.getRequired(), defaultPair.getRight(), symbol));
         }
 
         final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), this, expectedKeywords);
 
         return sequence(sourceSection, Arrays.asList(
                 loadArguments,                                  // load positional arguments
-                new WriteMissingKeywordArgumentsNode(keywordParameterFrameSlots, language.symbolTable.getSymbol("missing_default_keyword_argument")),      // set all keyword arguments to :missing_default_keyword_argument
+                new WriteMissingKeywordArgumentsNode(keywordParameterFrameSlots),      // set all keyword arguments to :missing_default_keyword_argument
                 oldLoadKeywordArguments,                        // do the old-style load of keyword arguments (except it doesn't run defaults - it leaves them set to :missing_default_keyword_argument)
                 newLoadKeywordArguments,                        // do the new-style load of keyword arguments
                 sequence(sourceSection, assignDefaultNodes)));  // for any keyword argument still set to :missing_default_keyword_argument, run its default expression
