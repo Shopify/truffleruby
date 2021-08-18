@@ -1,12 +1,12 @@
 package org.truffleruby.language.arguments;
 
+import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import org.truffleruby.language.RubyContextSourceNode;
-import org.truffleruby.parser.MethodTranslator;
 
 import java.util.Map;
 
@@ -15,16 +15,14 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
 
     @Child private ReadUserKeywordsHashNode readHash;
 
-    private MethodTranslator translator;
     private Map<String, FrameSlot> expected;
 
-    public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator, Map<String, FrameSlot> expected) {
-        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator, expected, new ReadDescriptorNode());
+    public static ReadDescriptorArgumentNode create(int minimum, Map<String, FrameSlot> expected) {
+        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), expected, new ReadDescriptorNode());
     }
 
-    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator, Map<String, FrameSlot> expected) {
+    protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, Map<String, FrameSlot> expected) {
         this.readHash = readHash;
-        this.translator = translator;
         this.expected = expected;
     }
 
@@ -34,37 +32,32 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
     protected Object cached(VirtualFrame frame, KeywordArgumentsDescriptor descriptor,
                          @Cached("descriptor") KeywordArgumentsDescriptor cachedDescriptor) {
         // Do something more intelligent here than use the uncached here... we now statically know the descriptor!
+
         return uncached(frame, cachedDescriptor);
     }
 
     @Specialization(replaces = "cached")
     protected Object uncached(VirtualFrame frame, KeywordArgumentsDescriptor descriptor) {
-        // This will be a specialisation thing
-        final String[] keywords = descriptor.getKeywords();
-        if (keywords.length == 0) {
+        // Quick exit for an empty descriptor.
+
+        if (descriptor == KeywordArgumentsDescriptor.EMPTY) {
             return null;
         }
 
         // I have no idea why this is needed... if there is no actual hash don't unload anything...
+
         if (readHash.execute(frame) == null) {
             return null;
         }
 
-        Object[] values = RubyArguments.getKeywordArgumentsValues(frame);
-        int keywordArgValueIndex = values.length - keywords.length;
+        // For each keyword in the descriptor, store its value in a local, as long as it's expected.
 
-        for (int n = 0; n < keywords.length; n++) {
-            // Optimized way of attaining kw and value
-            String keyword = keywords[n];
-            Object optimizedValue = values[keywordArgValueIndex];
+        for (int n = 0; n < descriptor.getLength(); n++) {
+            final String keyword = descriptor.getKeyword(n);
+            final FrameSlot frameSlot = expected(keyword);
 
-            keywordArgValueIndex++;
-
-            // Expected means that the callee expects this keyword argument
-            FrameSlot frameSlot = expected.get(keyword);
             if (frameSlot != null) {
-                // Store the optimizedValue into the local var
-                frame.setObject(frameSlot, optimizedValue);
+                frame.setObject(frameSlot, RubyArguments.getKeywordArgumentsValue(frame, n));
             } else {
                 // TODO - if there's a kwrest it'll take this value (and it's the job of ReadKeywordRestArgumentNode to handle that)
                 // but if there isn't a kwrest, then at this point we need to report the error! This requirement won't
@@ -73,6 +66,11 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
         }
 
         return null;
+    }
+
+    @TruffleBoundary
+    private FrameSlot expected(String keyword) {
+        return expected.get(keyword);
     }
 
 }

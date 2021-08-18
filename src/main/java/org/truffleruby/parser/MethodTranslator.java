@@ -432,7 +432,7 @@ public class MethodTranslator extends BodyTranslator {
             assignDefaultNodes.add(new CheckKeywordArgumentNode(defaultPair.getLeft(), translator.getRequired(), defaultPair.getRight(), symbol));
         }
 
-        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), this, expectedKeywords);
+        final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), expectedKeywords);
 
         return sequence(sourceSection, Arrays.asList(
                 loadArguments,                                  // load positional arguments

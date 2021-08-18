@@ -26,12 +26,16 @@ public class KeywordArgumentsDescriptor {
 
     private static final ConcurrentHashMap<KeywordArgumentsDescriptor, KeywordArgumentsDescriptor> CANONICAL_DESCRIPTORS = new ConcurrentHashMap<>();
 
-    public static final KeywordArgumentsDescriptor EMPTY = get(new String[]{}, false);
+    public static final KeywordArgumentsDescriptor EMPTY = new KeywordArgumentsDescriptor(new String[]{}, false);
 
     private final String[] keywords;
     public final boolean alsoSplat;
 
     public static KeywordArgumentsDescriptor get(String[] keywords, boolean alsoSplat) {
+        if (keywords == null || keywords.length == 0) {
+            return EMPTY;
+        }
+
         final KeywordArgumentsDescriptor descriptor = new KeywordArgumentsDescriptor(keywords, alsoSplat);
 
         final KeywordArgumentsDescriptor found = CANONICAL_DESCRIPTORS.putIfAbsent(descriptor, descriptor);
@@ -129,8 +133,6 @@ public class KeywordArgumentsDescriptor {
         return keywords;
     }
 
-    public boolean isEmpty() { return keywords.length == 0; }
-
     public int getLength() {
         return keywords.length;
     }
@@ -142,5 +144,9 @@ public class KeywordArgumentsDescriptor {
             }
         }
         return -1;
+    }
+
+    public String getKeyword(int n) {
+        return keywords[n];
     }
 }

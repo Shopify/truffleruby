@@ -11,6 +11,7 @@ package org.truffleruby.language.arguments;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
+import com.oracle.truffle.api.frame.VirtualFrame;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.RubyHash;
@@ -29,8 +30,6 @@ import org.truffleruby.language.threadlocal.SpecialVariableStorage;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
-
-import java.util.ArrayList;
 
 public final class RubyArguments {
 
@@ -242,9 +241,15 @@ public final class RubyArguments {
     }
 
     public static Object[] getKeywordArgumentsValues(Frame frame) {
-        KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
-        Object[] arguments = frame.getArguments();
+        final KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
+        final Object[] arguments = frame.getArguments();
         return ArrayUtils.extractRange(arguments, arguments.length - descriptor.getLength(), arguments.length);
+    }
+
+    public static Object getKeywordArgumentsValue(VirtualFrame frame, int n) {
+        final KeywordArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(frame);
+        final Object[] arguments = frame.getArguments();
+        return arguments[arguments.length - descriptor.getLength() + n];
     }
 
     public static int getArgumentsCount(Frame frame) {
