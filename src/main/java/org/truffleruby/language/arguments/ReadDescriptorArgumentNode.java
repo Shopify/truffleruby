@@ -1,5 +1,6 @@
 package org.truffleruby.language.arguments;
 
+import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.Frame;
@@ -34,8 +35,15 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
 
     public abstract Object execute(VirtualFrame frame, KeywordArgumentsDescriptor descriptor);
 
-    @Specialization
-    protected Object lookupKeywordInDescriptor(VirtualFrame frame, KeywordArgumentsDescriptor descriptor) {
+    @Specialization(guards = "descriptor == cachedDescriptor", limit = "4")
+    protected Object cached(VirtualFrame frame, KeywordArgumentsDescriptor descriptor,
+                         @Cached("descriptor") KeywordArgumentsDescriptor cachedDescriptor) {
+        // Do something more intelligent here than use the uncached here... we now statically know the descriptor!
+        return uncached(frame, cachedDescriptor);
+    }
+
+    @Specialization(replaces = "cached")
+    protected Object uncached(VirtualFrame frame, KeywordArgumentsDescriptor descriptor) {
         // This will be a specialisation thing
         final String[] keywords = descriptor.getKeywords();
         if (keywords.length == 0) {
