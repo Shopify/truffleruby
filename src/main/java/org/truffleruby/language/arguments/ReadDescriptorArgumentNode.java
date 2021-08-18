@@ -68,6 +68,10 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
                 final WriteLocalVariableNode writeNode = new WriteLocalVariableNode(slot, valueNode);
                 insert(writeNode);
                 writeNode.execute(frame);
+            } else {
+                // TODO - if there's a kwrest it'll take this value (and it's the job of ReadKeywordRestArgumentNode to handle that)
+                // but if there isn't a kwrest, then at this point we need to report the error! This requirement won't
+                // become pressing until we stop putting descriptor argument values into the hash as well.
             }
         }
 
