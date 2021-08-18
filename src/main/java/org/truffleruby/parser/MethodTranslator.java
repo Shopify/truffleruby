@@ -416,9 +416,7 @@ public class MethodTranslator extends BodyTranslator {
         // Load positional keyword arguments
         final RubyNode loadArguments = translator.translateNonKeywordArguments();
 
-        // TODO: We will eventually create a node here to look at the descriptor...
-        //     But first load keywords arguments
-        final RubyNode oldLoadKeywordArguments = translator.translateKeywordArguments();
+        translator.acceptKeywordArguments();
 
         final Map<String, FrameSlot> expectedKeywords = new HashMap<>();
         final FrameSlot[] keywordParameterFrameSlots = new FrameSlot[translator.defaults.size()];
@@ -437,7 +435,6 @@ public class MethodTranslator extends BodyTranslator {
         return sequence(sourceSection, Arrays.asList(
                 loadArguments,                                  // load positional arguments
                 new WriteMissingKeywordArgumentsNode(keywordParameterFrameSlots),      // set all keyword arguments to :missing_default_keyword_argument
-                oldLoadKeywordArguments,                        // do the old-style load of keyword arguments (except it doesn't run defaults - it leaves them set to :missing_default_keyword_argument)
                 newLoadKeywordArguments,                        // do the new-style load of keyword arguments
                 sequence(sourceSection, assignDefaultNodes)));  // for any keyword argument still set to :missing_default_keyword_argument, run its default expression
     }

@@ -126,12 +126,8 @@ public class LoadArgumentsTranslator extends Translator {
         this.hasKeywordArguments = argsNode.hasKwargs();
     }
 
-    public RubyNode translateKeywordArguments() {
-        final SourceIndexLength sourceSection = argsNode.getPosition();
-        final List<RubyNode> sequence = new ArrayList<>();
-//        sequence.add(loadSelf(language, methodBodyTranslator.getEnvironment()));
+    public void acceptKeywordArguments() {
         final ParseNode[] args = argsNode.getArgs();
-
         if (hasKeywordArguments) {
             final int keywordIndex = argsNode.getKeywordsIndex();
             final int keywordCount = argsNode.getKeywordCount();
@@ -140,8 +136,7 @@ public class LoadArgumentsTranslator extends Translator {
                 args[keywordIndex + i].accept(this);
             }
         }
-
-        return sequence(sourceSection, sequence);
+        return;
     }
 
     // Translates all arguments except keyword arguments
