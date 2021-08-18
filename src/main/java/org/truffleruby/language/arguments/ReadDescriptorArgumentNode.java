@@ -3,20 +3,14 @@ package org.truffleruby.language.arguments;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.VirtualFrame;
-import org.truffleruby.RubyLanguage;
-import org.truffleruby.collections.PEBiFunction;
-import org.truffleruby.core.hash.RubyHash;
-import org.truffleruby.core.hash.library.HashStoreLibrary;
-import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.locals.WriteLocalVariableNode;
 import org.truffleruby.parser.MethodTranslator;
 
 @NodeChild("descriptor")
-public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode implements PEBiFunction {
+public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
 
     @Child private ReadUserKeywordsHashNode readHash;
 
@@ -50,9 +44,8 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
             return null;
         }
 
-        // This will go away when we stop comparing against the old way of doing keyword arguments
-        final RubyHash hash = readHash.execute(frame);
-        if (hash == null) {
+        // I have no idea why this is needed... if there is no actual hash don't unload anything...
+        if (readHash.execute(frame) == null) {
             return null;
         }
 
@@ -64,11 +57,6 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
             String keyword = keywords[n];
             Object optimizedValue = values[keywordArgValueIndex];
 
-            // Old way of attaining value
-            Object actualValue = HashStoreLibrary.getUncached().lookupOrDefault(hash.store, frame, hash, keywordAsSymbols(getLanguage(), keyword), this);
-
-            // Compare the two values
-            assert optimizedValue == actualValue : "the optimizedValue: " + optimizedValue + " actualValue: " + actualValue;
             keywordArgValueIndex++;
 
             // Expected means that the callee expects this keyword argument
@@ -99,16 +87,4 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
         return false;
     }
 
-    static RubySymbol keywordAsSymbols(RubyLanguage language, String keyword) {
-        final RubySymbol[] symbols = new RubySymbol[1];
-        symbols[0] = language.getSymbol(keyword);
-        return symbols[0];
-    }
-
-    // This is required to use the #lookupOrDefault function to check the
-    // actual keyword argument value
-    @Override
-    public Object accept(Frame frame, Object hash, Object key) {
-        return null;
-    }
 }
