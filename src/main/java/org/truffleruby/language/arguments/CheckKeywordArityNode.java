@@ -70,26 +70,6 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         if (!arity.hasKeywordsRest() && keywordArguments != null) {
             checkKeywordArguments(argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame), RubyArguments.getKeywordArgumentsDescriptor(frame));
         }
-
-        if (keywordArguments != null) {
-            checkEverythingInDescriptorIsInHash(language, keywordArguments, RubyArguments.getKeywordArgumentsDescriptor(frame));
-        }
-    }
-
-    @CompilerDirectives.TruffleBoundary
-    private void checkEverythingInDescriptorIsInHash(RubyLanguage language, RubyHash keywordArguments, KeywordArgumentsDescriptor argumentsDescriptor) {
-        assert keywordArguments != null;
-        assert argumentsDescriptor != null;
-
-        // Don't bother checking if it's a splatted keyword?
-        if (argumentsDescriptor.alsoSplat) {
-            return;
-        }
-        for (String described : argumentsDescriptor.getKeywords()) {
-            if (!((boolean) RubyContext.send(keywordArguments, "has_key?", language.getSymbol(described)))) {
-                throw new RuntimeException("descriptor says kw statically there, but not in hash! did not contain " + described);
-            }
-        }
     }
 
     void checkKeywordArguments(int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
