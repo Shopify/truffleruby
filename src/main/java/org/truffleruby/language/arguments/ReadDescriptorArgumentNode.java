@@ -1,5 +1,6 @@
 package org.truffleruby.language.arguments;
 
+import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.FrameSlot;
@@ -13,14 +14,16 @@ import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.locals.WriteLocalVariableNode;
 import org.truffleruby.parser.MethodTranslator;
 
+@NodeChild("descriptor")
 public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode implements PEBiFunction {
 
     @Child private ReadUserKeywordsHashNode readHash;
+
     private MethodTranslator translator;
     private String[] expected;
 
     public static ReadDescriptorArgumentNode create(int minimum, MethodTranslator translator, String[] expected) {
-        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator, expected);
+        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), translator, expected, new ReadDescriptorNode());
     }
 
     protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, MethodTranslator translator, String[] expected) {
@@ -29,12 +32,12 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode i
         this.expected = expected;
     }
 
-    public abstract Object execute(VirtualFrame frame);
+    public abstract Object execute(VirtualFrame frame, KeywordArgumentsDescriptor descriptor);
 
     @Specialization
-    protected Object lookupKeywordInDescriptor(VirtualFrame frame) {
+    protected Object lookupKeywordInDescriptor(VirtualFrame frame, KeywordArgumentsDescriptor descriptor) {
         // This will be a specialisation thing
-        final String[] keywords = RubyArguments.getKeywordArgumentsDescriptor(frame).getKeywords();
+        final String[] keywords = descriptor.getKeywords();
         if (keywords.length == 0) {
             return null;
         }
