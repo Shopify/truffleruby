@@ -77,37 +77,28 @@ public class CheckKeywordArityNode extends RubyBaseNode {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             hashes = insert(HashStoreLibrary.createDispatched());
         }
-        //if (checkKeywordArgumentsNode == null) {
+        if (checkKeywordArgumentsNode == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
-        // TODO this lambda node needs to know about the flattened keyword argument values, so it needs to be created per call
-            checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity, keywordArgumentsValues) {
+            checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity));
+        }
 
-                @Override
-                protected KeywordArgumentsDescriptor getDescriptor() {
-                    return keywordArgumentsDescriptor;
-                }
-
-            });
-        //}
         hashes.eachEntry(keywordArguments.store, keywordArguments, checkKeywordArgumentsNode, argumentsCount);
     }
 
-    private abstract static class CheckKeywordArgumentsNode extends RubyContextNode implements EachEntryCallback {
+    private static class CheckKeywordArgumentsNode extends RubyContextNode implements EachEntryCallback {
 
         private final boolean doesNotAcceptExtraArguments;
         private final int required;
         @CompilationFinal(dimensions = 1) private final RubySymbol[] allowedKeywords;
-        private final Object[] keywordArgumentsValues;
 
         private final ConditionProfile isSymbolProfile = ConditionProfile.create();
         private final BranchProfile tooManyKeywordsProfile = BranchProfile.create();
         private final BranchProfile unknownKeywordProfile = BranchProfile.create();
 
-        public CheckKeywordArgumentsNode(RubyLanguage language, Arity arity, Object[] keywordArgumentsValues) {
+        public CheckKeywordArgumentsNode(RubyLanguage language, Arity arity) {
             assert !arity.hasKeywordsRest();
             doesNotAcceptExtraArguments = !arity.hasRest() && arity.getOptional() == 0;
             required = arity.getRequired();
-            this.keywordArgumentsValues = keywordArgumentsValues;
             allowedKeywords = keywordsAsSymbols(language, arity);
         }
 
@@ -120,7 +111,6 @@ public class CheckKeywordArityNode extends RubyBaseNode {
                             getContext(),
                             coreExceptions().argumentErrorUnknownKeyword((RubySymbol) key, this));
                 }
-                checkValueIsInArgumentsValueArray(key, index, value);
             } else {
                 // the Hash would be split and a reject Hash be created to hold non-Symbols when there is no **kwrest parameter,
                 // so we need to check if an extra argument is allowed
@@ -132,29 +122,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
             }
 
         }
-
-        protected abstract KeywordArgumentsDescriptor getDescriptor();
-
-        @CompilerDirectives.TruffleBoundary
-        private void checkValueIsInArgumentsValueArray(Object key, int index, Object value) {
-            // We only pack symbol keys
-            if (!(key instanceof RubySymbol)) {
-                return;
-            }
-
-            // We're only considering keys in the descriptor
-            final String keyword = ((RubySymbol) key).getString();
-            int packedIndex = getDescriptor().indexOf(keyword);
-            if (packedIndex == -1) {
-                return;
-            }
-
-            // Check the packed value is the same as the value from the hash
-            if (keywordArgumentsValues[packedIndex] != value) {
-                throw new IllegalArgumentException("optimised " + keywordArgumentsValues[index] + " original " + value);
-            }
-        }
-
+        
         @ExplodeLoop
         private boolean keywordAllowed(Object keyword) {
             for (int i = 0; i < allowedKeywords.length; i++) {
