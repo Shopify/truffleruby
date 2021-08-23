@@ -33,7 +33,7 @@ import com.oracle.truffle.api.nodes.ExplodeLoop;
 
 public final class RubyArguments {
 
-    private enum ArgumentIndicies {
+    public enum ArgumentIndicies {
         DECLARATION_FRAME, // 0
         CALLER_FRAME_OR_VARIABLES, // 1
         METHOD, // 2

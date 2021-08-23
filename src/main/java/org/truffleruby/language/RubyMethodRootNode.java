@@ -14,7 +14,10 @@ import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.TruffleSafepoint;
 import com.oracle.truffle.api.profiles.BranchProfile;
 import com.oracle.truffle.api.profiles.ConditionProfile;
+import com.oracle.truffle.api.profiles.ValueProfile;
 import org.truffleruby.RubyLanguage;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
+import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.control.DynamicReturnException;
 import org.truffleruby.language.control.LocalReturnException;
 import org.truffleruby.language.control.RaiseException;
@@ -41,6 +44,8 @@ public class RubyMethodRootNode extends RubyCheckArityRootNode {
     private final ConditionProfile matchingReturnProfile = ConditionProfile.create();
     private final BranchProfile retryProfile = BranchProfile.create();
 
+    private final ValueProfile adProfile = ValueProfile.createIdentityProfile();
+
     public RubyMethodRootNode(
             RubyLanguage language,
             SourceSection sourceSection,
@@ -56,6 +61,9 @@ public class RubyMethodRootNode extends RubyCheckArityRootNode {
     @Override
     public Object execute(VirtualFrame frame) {
         TruffleSafepoint.poll(this);
+
+        KeywordArgumentsDescriptor constantAD = adProfile.profile(RubyArguments.getKeywordArgumentsDescriptor(frame));
+        frame.getArguments()[RubyArguments.ArgumentIndicies.KEYWORD_ARGUMENTS_DESCRIPTOR.ordinal()] = constantAD;
 
         checkArity(frame);
 
