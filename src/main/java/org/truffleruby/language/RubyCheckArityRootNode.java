@@ -30,10 +30,6 @@ import com.oracle.truffle.api.source.SourceSection;
 
 public abstract class RubyCheckArityRootNode extends RubyRootNode {
 
-    public static RubyCheckArityRootNode of(RootCallTarget callTarget) {
-        return (RubyCheckArityRootNode) callTarget.getRootNode();
-    }
-
     @Child private CheckKeywordArityNode checkKeywordArityNode;
 
     public final Arity arityForCheck;
