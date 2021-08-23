@@ -4,7 +4,6 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
-import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.FrameSlot;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
@@ -20,7 +19,10 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
     private Map<String, FrameSlot> expected;
 
     public static ReadDescriptorArgumentNode create(int minimum, Map<String, FrameSlot> expected) {
-        return ReadDescriptorArgumentNodeGen.create(new ReadUserKeywordsHashNode(minimum), expected, new ReadDescriptorNode());
+        return ReadDescriptorArgumentNodeGen.create(
+                new ReadUserKeywordsHashNode(minimum),
+                expected,
+                new ReadDescriptorNode());
     }
 
     protected ReadDescriptorArgumentNode(ReadUserKeywordsHashNode readHash, Map<String, FrameSlot> expected) {
@@ -34,7 +36,9 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
     @Specialization(guards = "descriptor == cachedDescriptor", limit = "4")
     protected Object cached(VirtualFrame frame, KeywordArgumentsDescriptor descriptor,
                             @Cached("descriptor") KeywordArgumentsDescriptor cachedDescriptor,
-                            @Cached(value = "getSlots(descriptor)", dimensions = 1) FrameSlot[] descriptorSlots) {
+                            @Cached(value = "getSlots(cachedDescriptor)", dimensions = 1) FrameSlot[] descriptorSlots) {
+        //checkArity(frame, cachedDescriptor);
+
         // Quick exit for an empty descriptor.
 
         if (cachedDescriptor == KeywordArgumentsDescriptor.EMPTY) {
@@ -66,6 +70,8 @@ public abstract class ReadDescriptorArgumentNode extends RubyContextSourceNode {
 
     @Specialization(replaces = "cached")
     protected Object uncached(VirtualFrame frame, KeywordArgumentsDescriptor descriptor) {
+        //checkArity(frame, descriptor);
+
         // Quick exit for an empty descriptor.
 
         if (descriptor == KeywordArgumentsDescriptor.EMPTY) {
