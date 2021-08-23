@@ -39,6 +39,7 @@ public class CheckKeywordArityNode extends RubyBaseNode {
     @Child private HashStoreLibrary hashes;
 
     private final BranchProfile receivedKeywordsProfile = BranchProfile.create();
+    private final BranchProfile fooProfile = BranchProfile.create();
 
     public CheckKeywordArityNode(Arity arity) {
         this.readUserKeywordsHashNode = new ReadUserKeywordsHashNode(arity.getRequired());
@@ -68,15 +69,23 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         }
 
         if (!arity.hasKeywordsRest() && keywordArguments != null) {
-            checkKeywordArguments(argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame), RubyArguments.getKeywordArgumentsDescriptor(frame));
+            checkKeywordArguments(frame, argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame), RubyArguments.getKeywordArgumentsDescriptor(frame));
         }
     }
 
-    void checkKeywordArguments(int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
+    void checkKeywordArguments(VirtualFrame frame, int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
         if (hashes == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             hashes = insert(HashStoreLibrary.createDispatched());
         }
+
+        // If we have as many arguments as the descriptor says, no need to manually check the keyword hash
+        if (keywordArguments.size == RubyArguments.getKeywordArgumentsDescriptor(frame).getLength()) {
+            return;
+        }
+
+        fooProfile.enter();
+
         if (checkKeywordArgumentsNode == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             checkKeywordArgumentsNode = insert(new CheckKeywordArgumentsNode(language, arity));
