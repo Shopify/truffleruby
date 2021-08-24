@@ -57,6 +57,10 @@ public class ReadRestArgumentNode extends RubyContextSourceNode {
         this.hasRejectedKwargs = considerRejectedKWArgs ? ConditionProfile.create() : null;
     }
 
+    // TODO: This node requires the Descriptor in order to read the keywords from it
+    //   instead of from the RubyHash. Use the Primitive to get the flattened key values
+    //   as a hash.
+
     @Override
     public Object execute(VirtualFrame frame) {
         int endIndex = RubyArguments.getArgumentsCount(frame) - indexFromCount;
