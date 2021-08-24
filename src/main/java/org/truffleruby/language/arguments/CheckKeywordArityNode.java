@@ -69,11 +69,11 @@ public class CheckKeywordArityNode extends RubyBaseNode {
         }
 
         if (!arity.hasKeywordsRest() && keywordArguments != null) {
-            checkKeywordArguments(frame, argumentsCount, keywordArguments, arity, language, RubyArguments.getKeywordArgumentsValues(frame), RubyArguments.getKeywordArgumentsDescriptor(frame));
+            checkKeywordArguments(frame, argumentsCount, keywordArguments, arity, language);
         }
     }
 
-    void checkKeywordArguments(VirtualFrame frame, int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language, Object[] keywordArgumentsValues, KeywordArgumentsDescriptor keywordArgumentsDescriptor) {
+    void checkKeywordArguments(VirtualFrame frame, int argumentsCount, RubyHash keywordArguments, Arity arity, RubyLanguage language) {
         if (hashes == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             hashes = insert(HashStoreLibrary.createDispatched());
