@@ -12,6 +12,7 @@ package org.truffleruby.language.arguments;
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.frame.VirtualFrame;
+import org.truffleruby.RubyContext;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.hash.Entry;
 import org.truffleruby.core.hash.RubyHash;
@@ -126,10 +127,12 @@ public final class RubyArguments {
                     Object key = entry.getKey();
                     if (key instanceof RubySymbol && keywordArgumentsDescriptor.getKeywords()[n].equals(((RubySymbol) key).getString())) {
                         values[n]= entry.getValue();
+
+                        // Remove entry from the RubyHash after saving the value
+                        RubyContext.send(arguments, "delete", entry.getKey());
                         break;
                     }
                 }
-
                 entry = entry.getNextInSequence();
             }
         } else if ((arguments.store != null) && (arguments.store instanceof Object[])) {
