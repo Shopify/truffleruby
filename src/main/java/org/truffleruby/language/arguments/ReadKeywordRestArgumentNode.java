@@ -23,6 +23,8 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 
+import java.util.Set;
+
 public class ReadKeywordRestArgumentNode extends RubyContextSourceNode implements EachEntryCallback {
 
     @CompilationFinal(dimensions = 1) private final RubySymbol[] excludedKeywords;
@@ -51,6 +53,20 @@ public class ReadKeywordRestArgumentNode extends RubyContextSourceNode implement
             return HashOperations.newEmptyHash(getContext(), getLanguage());
         } else {
             final RubyHash kwRest = HashOperations.newEmptyHash(getContext(), getLanguage());
+
+            final KeywordArgumentsDescriptor descriptor = RubyArguments.getKeywordArgumentsDescriptor(frame);
+            final Set<String> kwArgs = Set.of(formalKeywordArguments);
+
+            for (int n = 0; n < descriptor.getLength(); n++) {
+                final String keyword = descriptor.getKeyword(n);
+
+                if (!kwArgs.contains(keyword)) {
+                    final RubySymbol key = getSymbol(keyword);
+                    final Object value = RubyArguments.getKeywordArgumentsValue(frame, n);
+                    hashes.set(kwRest.store, kwRest, key, value, false);
+                }
+            }
+
             return hashes.eachEntry(hash.store, hash, this, kwRest);
         }
     }
