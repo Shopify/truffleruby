@@ -31,10 +31,12 @@ public class ReadKeywordRestArgumentNode extends RubyContextSourceNode implement
     @Child private HashStoreLibrary hashes = HashStoreLibrary.createDispatched();
 
     private final ConditionProfile noHash = ConditionProfile.create();
+    private final String[] formalKeywordArguments;
 
-    public ReadKeywordRestArgumentNode(RubyLanguage language, int minimum, Arity arity) {
+    public ReadKeywordRestArgumentNode(RubyLanguage language, int minimum, Arity arity, String[] formalKeywordArguments) {
         this.excludedKeywords = CheckKeywordArityNode.keywordsAsSymbols(language, arity);
         this.readUserKeywordsHashNode = new ReadUserKeywordsHashNode(minimum);
+        this.formalKeywordArguments = formalKeywordArguments;
     }
 
     @Override
