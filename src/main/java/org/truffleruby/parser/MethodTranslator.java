@@ -413,9 +413,6 @@ public class MethodTranslator extends BodyTranslator {
     }
 
     RubyNode loadArguments(SourceIndexLength sourceSection, LoadArgumentsTranslator translator) {
-        // Load positional keyword arguments
-        final RubyNode loadArguments = translator.translateNonKeywordArguments();
-
         translator.acceptKeywordArguments();
 
         final Map<String, FrameSlot> expectedKeywords = new HashMap<>();
@@ -429,6 +426,10 @@ public class MethodTranslator extends BodyTranslator {
             final RubySymbol symbol = language.getSymbol((String) defaultPair.getLeft().getIdentifier());
             assignDefaultNodes.add(new CheckKeywordArgumentNode(defaultPair.getLeft(), translator.getRequired(), defaultPair.getRight(), symbol));
         }
+
+        // Load positional keyword arguments
+        final String[] formalKeywordArguments = expectedKeywords.keySet().toArray(new String[]{});
+        final RubyNode loadArguments = translator.translateNonKeywordArguments(formalKeywordArguments);
 
         final RubyNode newLoadKeywordArguments = ReadDescriptorArgumentNode.create(translator.getRequired(), expectedKeywords);
 

@@ -139,8 +139,12 @@ public class LoadArgumentsTranslator extends Translator {
         return;
     }
 
+    private String[] formalKeywordArguments;
+
     // Translates all arguments except keyword arguments
-    public RubyNode translateNonKeywordArguments() {
+    public RubyNode translateNonKeywordArguments(String[] formalKeywordArguments) {
+        this.formalKeywordArguments = formalKeywordArguments;
+
         final SourceIndexLength sourceSection = argsNode.getPosition();
 
         final List<RubyNode> sequence = new ArrayList<>();
