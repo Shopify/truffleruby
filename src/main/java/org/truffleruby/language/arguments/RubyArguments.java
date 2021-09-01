@@ -128,9 +128,12 @@ public final class RubyArguments {
                     if (key instanceof RubySymbol && keywordArgumentsDescriptor.getKeywords()[n].equals(((RubySymbol) key).getString())) {
                         values[n]= entry.getValue();
 
-                        // Remove entry from the RubyHash after saving the value
-                        RubyContext.send(arguments, "delete", entry.getKey());
-                        break;
+                        // TODO: Remove entry from the RubyHash after saving the value
+                        //   This change causes some issues with literal hashes. We're commenting
+                        //   these lines out for now in order to move forward with benchmarking.
+
+                        // RubyContext.send(arguments, "delete", entry.getKey());
+                        // break;
                     }
                 }
                 entry = entry.getNextInSequence();
