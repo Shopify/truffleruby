@@ -37,9 +37,8 @@ public abstract class FromJavaStringNode extends RubyBaseNode {
     @Specialization(guards = "stringsEquals(cachedValue, value)", limit = "getLimit()")
     protected RubyString doCached(String value,
             @Cached("value") String cachedValue,
-            @Cached("getRope(value)") Rope cachedRope,
-            @Cached StringNodes.MakeStringNode makeStringNode) {
-        return makeStringNode.fromRope(cachedRope, Encodings.UTF_8);
+            @Cached("getRope(value)") Rope cachedRope) {
+        return createString(cachedRope, Encodings.UTF_8);
     }
 
     @Specialization(replaces = "doCached")

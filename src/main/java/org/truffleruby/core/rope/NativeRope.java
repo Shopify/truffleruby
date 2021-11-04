@@ -14,7 +14,6 @@ import org.jcodings.Encoding;
 import org.jcodings.specific.ASCIIEncoding;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.string.StringAttributes;
-import org.truffleruby.core.string.StringSupport;
 import org.truffleruby.extra.ffi.Pointer;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -153,6 +152,7 @@ public class NativeRope extends Rope {
         }
     }
 
+    // TODO
     public void clearCodeRange() {
         this.characterLength = UNKNOWN_CHARACTER_LENGTH;
         this.codeRange = CodeRange.CR_UNKNOWN;
@@ -183,17 +183,6 @@ public class NativeRope extends Rope {
     public byte get(int index) {
         assert 0 <= index && index < pointer.getSize();
         return pointer.readByte(index);
-    }
-
-    public void set(int index, int value) {
-        assert 0 <= index && index < pointer.getSize();
-        assert value >= -128 && value < 256;
-
-        if (!(codeRange == CodeRange.CR_7BIT && StringSupport.isAsciiCodepoint(value))) {
-            clearCodeRange();
-        }
-
-        pointer.writeByte(index, (byte) value);
     }
 
     @Override

@@ -12,6 +12,7 @@ package org.truffleruby.language.library;
 import com.oracle.truffle.api.library.GenerateLibrary;
 import com.oracle.truffle.api.library.Library;
 import com.oracle.truffle.api.library.LibraryFactory;
+import com.oracle.truffle.api.strings.AbstractTruffleString;
 import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.rope.Rope;
 
@@ -33,6 +34,8 @@ public abstract class RubyStringLibrary extends Library {
     }
 
     public abstract Rope getRope(Object object);
+
+    public abstract AbstractTruffleString getTString(Object object);
 
     public abstract RubyEncoding getEncoding(Object object);
 

@@ -102,6 +102,13 @@ public abstract class TranslateExceptionNode extends RubyBaseNode {
             errorProfile.enter();
             // it cannot be returned and we want to propagate it always anyway
             throw exception;
+        } catch (IllegalArgumentException e) {
+            final String message = e.getMessage();
+            if (message.equals("UTF-32 string byte length is not a multiple of 4") ||
+                    message.equals("UTF-16 string byte length is not a multiple of 2")) { // HACK
+                throw new RaiseException(getContext(), coreExceptions().argumentError(message, this));
+            }
+            throw e;
         } catch (Throwable exception) {
             errorProfile.enter();
             if (getContext().getEnv().isHostException(exception)) {

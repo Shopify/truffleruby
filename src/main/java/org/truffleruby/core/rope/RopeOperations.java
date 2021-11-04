@@ -93,7 +93,7 @@ public class RopeOperations {
     }
 
     @TruffleBoundary
-    public static LeafRope create(byte b, Encoding encoding, CodeRange codeRange) {
+    public static LeafRope create(byte b, Encoding encoding, CodeRange codeRange) { // DEAD CODE
         final int index = b & 0xff;
 
         if (encoding == UTF8Encoding.INSTANCE) {

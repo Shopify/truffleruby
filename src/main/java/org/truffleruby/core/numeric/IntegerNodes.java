@@ -1467,7 +1467,7 @@ public abstract class IntegerNodes {
         @Specialization
         protected RubyString toS(int n, NotProvided base) {
             final Rope rope = new LazyIntRope(n);
-            return makeStringNode.fromRope(rope, Encodings.US_ASCII);
+            return createString(rope, Encodings.US_ASCII);
         }
 
         @TruffleBoundary

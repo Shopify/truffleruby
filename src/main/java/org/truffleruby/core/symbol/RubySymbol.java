@@ -12,6 +12,7 @@ package org.truffleruby.core.symbol;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.library.CachedLibrary;
+import com.oracle.truffle.api.strings.TruffleString;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.Hashing;
@@ -41,6 +42,7 @@ public final class RubySymbol extends ImmutableRubyObject implements TruffleObje
     public final RubyEncoding encoding;
     private final String string;
     private final LeafRope rope;
+    public final TruffleString tstring;
     private final int javaStringHashCode;
     private final long id;
     private ImmutableRubyString name;
@@ -48,18 +50,20 @@ public final class RubySymbol extends ImmutableRubyObject implements TruffleObje
 
     private volatile RootCallTarget callTargetNoRefinements = null;
 
-    RubySymbol(String string, LeafRope rope, RubyEncoding encoding, long id) {
+    RubySymbol(String string, LeafRope rope, TruffleString tstring, RubyEncoding encoding, long id) {
         assert rope.encoding == encoding.jcoding;
+        assert tstring.isManaged();
         this.encoding = encoding;
         this.string = string;
         this.rope = rope;
+        this.tstring = tstring;
         this.javaStringHashCode = string.hashCode();
         this.id = id;
         this.type = Identifiers.stringToType(string);
     }
 
-    RubySymbol(String string, LeafRope rope, RubyEncoding encoding) {
-        this(string, rope, encoding, UNASSIGNED_ID);
+    RubySymbol(String string, LeafRope rope, TruffleString tstring, RubyEncoding encoding) {
+        this(string, rope, tstring, encoding, UNASSIGNED_ID);
     }
 
     public long getId() {
@@ -104,7 +108,7 @@ public final class RubySymbol extends ImmutableRubyObject implements TruffleObje
 
     public ImmutableRubyString getName(RubyLanguage language) {
         if (name == null) {
-            name = language.getFrozenStringLiteral(this.getRope());
+            name = language.getFrozenStringLiteral(tstring, encoding);
         }
         return name;
     }

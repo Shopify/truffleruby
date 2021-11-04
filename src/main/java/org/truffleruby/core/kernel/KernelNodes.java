@@ -620,9 +620,8 @@ public abstract class KernelNodes {
 
         @Specialization
         protected RubyDynamicObject cloneImmutableRubyString(ImmutableRubyString object, Object freeze,
-                @CachedLibrary(limit = "getRubyLibraryCacheLimit()") RubyLibrary rubyLibraryFreeze,
-                @Cached MakeStringNode makeStringNode) {
-            final RubyDynamicObject newObject = makeStringNode.fromRope(object.rope, object.encoding);
+                @CachedLibrary(limit = "getRubyLibraryCacheLimit()") RubyLibrary rubyLibraryFreeze) {
+            final RubyDynamicObject newObject = createString(object.tstring, object.encoding);
             if (!forceNotFrozen(freeze)) {
                 rubyLibraryFreeze.freeze(newObject);
             }

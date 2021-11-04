@@ -17,6 +17,7 @@ import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.library.CachedLibrary;
 import com.oracle.truffle.api.object.Shape;
 import com.oracle.truffle.api.profiles.ConditionProfile;
+import com.oracle.truffle.api.strings.TruffleString;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreMethodArrayArgumentsNode;
@@ -391,10 +392,13 @@ public abstract class TimeNodes {
                 @Cached RopeNodes.EqualNode equalNode,
                 @Cached("formatCanBeFast(pattern)") boolean canUseFast,
                 @Cached ConditionProfile yearIsFastProfile,
-                @Cached RopeNodes.ConcatNode concatNode) {
+                @Cached TruffleString.ConcatNode concatNode,
+                @Cached TruffleString.FromLongNode fromLongNode,
+                @Cached TruffleString.CodePointLengthNode codePointLengthNode) {
             if (canUseFast && yearIsFastProfile.profile(yearIsFast(time))) {
-                final Rope rope = RubyDateFormatter.formatToRopeFast(pattern, time.dateTime, concatNode);
-                return makeStringNode.fromRope(rope, Encodings.UTF_8);
+                var tstring = RubyDateFormatter.formatToRopeFast(pattern, time.dateTime, concatNode, fromLongNode,
+                        codePointLengthNode);
+                return createString(tstring, Encodings.UTF_8);
             } else {
                 final RubyEncoding rubyEncoding = libFormat.getEncoding(format);
                 final RopeBuilder ropeBuilder = formatTime(time, pattern);
@@ -406,11 +410,14 @@ public abstract class TimeNodes {
         @Specialization(guards = "libFormat.isRubyString(format)")
         protected RubyString timeStrftime(RubyTime time, Object format,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libFormat,
-                @Cached RopeNodes.ConcatNode concatNode) {
+                @Cached TruffleString.ConcatNode concatNode,
+                @Cached TruffleString.FromLongNode fromLongNode,
+                @Cached TruffleString.CodePointLengthNode codePointLengthNode) {
             final Token[] pattern = compilePattern(libFormat.getRope(format));
             if (formatCanBeFast(pattern) && yearIsFast(time)) {
-                final Rope rope = RubyDateFormatter.formatToRopeFast(pattern, time.dateTime, concatNode);
-                return makeStringNode.fromRope(rope, Encodings.UTF_8);
+                var tstring = RubyDateFormatter.formatToRopeFast(pattern, time.dateTime, concatNode, fromLongNode,
+                        codePointLengthNode);
+                return createString(tstring, Encodings.UTF_8);
             } else {
                 final RubyEncoding rubyEncoding = libFormat.getEncoding(format);
                 final RopeBuilder ropeBuilder = formatTime(time, pattern);

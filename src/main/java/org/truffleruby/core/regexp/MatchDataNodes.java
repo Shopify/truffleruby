@@ -16,6 +16,7 @@ import com.oracle.truffle.api.TruffleSafepoint;
 import com.oracle.truffle.api.interop.InteropException;
 import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.profiles.LoopConditionProfile;
+import com.oracle.truffle.api.strings.TruffleString;
 import org.jcodings.Encoding;
 import org.joni.NameEntry;
 import org.joni.Regex;
@@ -238,7 +239,6 @@ public abstract class MatchDataNodes {
 
         @Child private RegexpNode regexpNode;
         @Child private ValuesNode getValuesNode = ValuesNode.create();
-        @Child private RopeNodes.SubstringNode substringNode = RopeNodes.SubstringNode.create();
 
         public static GetIndexNode create(RubyNode... nodes) {
             return MatchDataNodesFactory.GetIndexNodeFactory.create(nodes);
@@ -253,7 +253,8 @@ public abstract class MatchDataNodes {
                 @Cached ConditionProfile indexOutOfBoundsProfile,
                 @Cached ConditionProfile lazyProfile,
                 @CachedLibrary(limit = "getInteropCacheLimit()") InteropLibrary interop,
-                @Cached ConditionProfile hasValueProfile) {
+                @Cached ConditionProfile hasValueProfile,
+                @Cached TruffleString.SubstringByteIndexNode substringNode) {
 
             final Region region = matchData.region;
             if (normalizedIndexProfile.profile(index < 0)) {
@@ -268,16 +269,7 @@ public abstract class MatchDataNodes {
 
                 if (hasValueProfile.profile(start >= 0 && end >= 0)) {
                     final Object source = matchData.source;
-                    final Rope sourceRope = strings.getRope(source);
-                    final Rope rope = substringNode.executeSubstring(sourceRope, start, end - start);
-                    final RubyString string = new RubyString(
-                            coreLibrary().stringClass,
-                            getLanguage().stringShape,
-                            false,
-                            rope,
-                            strings.getEncoding(source));
-                    AllocationTracing.trace(string, this);
-                    return string;
+                    return createSubString(substringNode, strings, source, start, end - start);
                 } else {
                     return nil;
                 }
@@ -484,8 +476,6 @@ public abstract class MatchDataNodes {
 
     public abstract static class ValuesNode extends CoreMethodArrayArgumentsNode {
 
-        @Child private RopeNodes.SubstringNode substringNode = RopeNodes.SubstringNode.create();
-
         public static ValuesNode create() {
             return ValuesNodeFactory.create(null);
         }
@@ -498,7 +488,8 @@ public abstract class MatchDataNodes {
                 @Cached ConditionProfile lazyProfile,
                 @CachedLibrary(limit = "getInteropCacheLimit()") InteropLibrary interop,
                 @Cached ConditionProfile hasValueProfile,
-                @Cached LoopConditionProfile loopProfile) {
+                @Cached LoopConditionProfile loopProfile,
+                @Cached TruffleString.SubstringByteIndexNode substringNode) {
             final Object source = matchData.source;
             final Rope sourceRope = strings.getRope(source);
             final Region region = matchData.region;
@@ -511,15 +502,7 @@ public abstract class MatchDataNodes {
                     final int end = getEnd(matchData, n, lazyProfile, interop);
 
                     if (hasValueProfile.profile(start >= 0 && end >= 0)) {
-                        final Rope rope = substringNode.executeSubstring(sourceRope, start, end - start);
-                        final RubyString string = new RubyString(
-                                coreLibrary().stringClass,
-                                getLanguage().stringShape,
-                                false,
-                                rope,
-                                strings.getEncoding(source));
-                        AllocationTracing.trace(string, this);
-                        values[n] = string;
+                        values[n] = createSubString(substringNode, strings, source, start, end - start);
                     } else {
                         values[n] = nil;
                     }
@@ -630,34 +613,22 @@ public abstract class MatchDataNodes {
     @CoreMethod(names = "pre_match")
     public abstract static class PreMatchNode extends CoreMethodArrayArgumentsNode {
 
-        @Child private RopeNodes.SubstringNode substringNode = RopeNodes.SubstringNode.create();
-
         public abstract RubyString execute(RubyMatchData matchData);
 
         @Specialization
         protected RubyString preMatch(RubyMatchData matchData,
                 @Cached ConditionProfile lazyProfile,
                 @CachedLibrary(limit = "getInteropCacheLimit()") InteropLibrary interop,
-                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) {
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
+                @Cached TruffleString.SubstringByteIndexNode substringNode) {
             Object source = matchData.source;
-            Rope sourceRope = strings.getRope(source);
             final int length = getStart(matchData, 0, lazyProfile, interop);
-            final Rope rope = substringNode.executeSubstring(sourceRope, 0, length);
-            final RubyString string = new RubyString(
-                    coreLibrary().stringClass,
-                    getLanguage().stringShape,
-                    false,
-                    rope,
-                    strings.getEncoding(source));
-            AllocationTracing.trace(string, this);
-            return string;
+            return createSubString(substringNode, strings, source, 0, length);
         }
     }
 
     @CoreMethod(names = "post_match")
     public abstract static class PostMatchNode extends CoreMethodArrayArgumentsNode {
-
-        @Child private RopeNodes.SubstringNode substringNode = RopeNodes.SubstringNode.create();
 
         public abstract RubyString execute(RubyMatchData matchData);
 
@@ -665,20 +636,13 @@ public abstract class MatchDataNodes {
         protected RubyString postMatch(RubyMatchData matchData,
                 @Cached ConditionProfile lazyProfile,
                 @CachedLibrary(limit = "getInteropCacheLimit()") InteropLibrary interop,
-                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) {
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
+                @Cached TruffleString.SubstringByteIndexNode substringNode) {
             Object source = matchData.source;
             Rope sourceRope = strings.getRope(source);
             final int start = getEnd(matchData, 0, lazyProfile, interop);
             int length = sourceRope.byteLength() - start;
-            Rope rope = substringNode.executeSubstring(sourceRope, start, length);
-            final RubyString string = new RubyString(
-                    coreLibrary().stringClass,
-                    getLanguage().stringShape,
-                    false,
-                    rope,
-                    strings.getEncoding(source));
-            AllocationTracing.trace(string, this);
-            return string;
+            return createSubString(substringNode, strings, source, start, length);
         }
     }
 

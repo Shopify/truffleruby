@@ -100,11 +100,11 @@ public abstract class ToStringNode extends FormatNode {
     protected Rope toStringSpecialClass(RubyClass rubyClass,
             @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString) {
         if (rubyClass == getContext().getCoreLibrary().trueClass) {
-            return RopeConstants.TRUE;
+            return RopeConstants.lookupUSASCII("true"); // RopeConstants.TRUE;
         } else if (rubyClass == getContext().getCoreLibrary().falseClass) {
-            return RopeConstants.FALSE;
+            return RopeConstants.lookupUSASCII("false"); // RopeConstants.FALSE;
         } else if (rubyClass == getContext().getCoreLibrary().nilClass) {
-            return RopeConstants.NIL;
+            return RopeConstants.lookupUSASCII("nil"); // RopeConstants.NIL;
         } else {
             return toString(rubyClass, libString);
         }

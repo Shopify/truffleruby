@@ -34,6 +34,7 @@ import static org.truffleruby.core.rope.CodeRange.CR_VALID;
 import java.util.Arrays;
 
 import com.oracle.truffle.api.nodes.Node;
+import com.oracle.truffle.api.strings.AbstractTruffleString;
 import org.graalvm.collections.Pair;
 import org.jcodings.Config;
 import org.jcodings.Encoding;
@@ -48,6 +49,7 @@ import org.truffleruby.collections.IntHashMap;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.encoding.Encodings;
 import org.truffleruby.core.encoding.RubyEncoding;
+import org.truffleruby.core.encoding.TStringUtils;
 import org.truffleruby.core.rope.Bytes;
 import org.truffleruby.core.rope.CodeRange;
 import org.truffleruby.core.rope.Rope;
@@ -487,10 +489,19 @@ public final class StringSupport {
 
     /** rb_str_tr / rb_str_tr_bang */
     public static final class TR {
-        public TR(Rope bytes) {
+        public TR(Rope rope) {
             p = 0;
-            pend = bytes.byteLength() + p;
-            buf = bytes.getBytes();
+            pend = p + rope.byteLength();
+            buf = rope.getBytes();
+            now = max = 0;
+            gen = false;
+        }
+
+        public TR(AbstractTruffleString string, RubyEncoding encoding) {
+            var bytes = string.getInternalByteArrayUncached(encoding.tencoding);
+            p = bytes.getOffset();
+            pend = bytes.getEnd();
+            buf = bytes.getArray();
             now = max = 0;
             gen = false;
         }
@@ -508,14 +519,17 @@ public final class StringSupport {
     private static final Object DUMMY_VALUE = "";
 
     @TruffleBoundary
-    public static TrTables trSetupTable(Rope str, boolean[] stable, TrTables tables, boolean first, Encoding enc,
+    public static TrTables trSetupTable(AbstractTruffleString str, RubyEncoding encoding, boolean[] stable,
+            TrTables tables, boolean first, Encoding enc,
             Node node) {
         int i, l[] = { 0 };
         final boolean cflag;
 
-        final TR tr = new TR(str);
+        final TR tr = new TR(str, encoding);
 
-        if (str.byteLength() > 1 && EncodingUtils.encAscget(tr.buf, tr.p, tr.pend, l, enc, str.getCodeRange()) == '^') {
+        CodeRange codeRange = TStringUtils.toCodeRange(str.getByteCodeRangeUncached(encoding.tencoding));
+        if (str.byteLength(encoding.tencoding) > 1 &&
+                EncodingUtils.encAscget(tr.buf, tr.p, tr.pend, l, enc, codeRange) == '^') {
             cflag = true;
             tr.p += l[0];
         } else {
@@ -539,7 +553,7 @@ public final class StringSupport {
         IntHashMap<Object> table = null, ptable = null;
 
         int c;
-        while ((c = trNext(tr, enc, str.getCodeRange(), node)) != -1) {
+        while ((c = trNext(tr, enc, codeRange, node)) != -1) {
             if (c < TRANS_SIZE) {
                 if (buf == null) { // initialize buf
                     buf = new byte[TRANS_SIZE];
@@ -2003,4 +2017,5 @@ public final class StringSupport {
                 return -1;
         }
     }
+    // endregion
 }

@@ -509,7 +509,8 @@ public class BodyTranslator extends Translator {
             final StrParseNode strNode = (StrParseNode) receiver;
             final Rope nodeRope = strNode.getValue();
             final ImmutableRubyString frozenString = language
-                    .getFrozenStringLiteral(nodeRope.getBytes(), nodeRope.getEncoding(), strNode.getCodeRange());
+                    .getFrozenStringLiteral(nodeRope.getBytes(),
+                            Encodings.getBuiltInEncoding(nodeRope.getEncoding()));
             return addNewlineIfNeeded(node, withSourceSection(
                     sourceSection,
                     new FrozenStringLiteralNode(frozenString, FrozenStrings.METHOD)));
@@ -1504,8 +1505,7 @@ public class BodyTranslator extends Translator {
     @Override
     public RubyNode visitEncodingNode(EncodingParseNode node) {
         SourceIndexLength sourceSection = node.getPosition();
-        final RubyNode ret = new ObjectLiteralNode(
-                Encodings.getBuiltInEncoding(node.getEncoding().getIndex()));
+        final RubyNode ret = new ObjectLiteralNode(Encodings.getBuiltInEncoding(node.getEncoding()));
         ret.unsafeSetSourceSection(sourceSection);
         return addNewlineIfNeeded(node, ret);
     }
@@ -1525,7 +1525,8 @@ public class BodyTranslator extends Translator {
 
         if (node.getBody() == null) { // "#{}"
             final SourceIndexLength sourceSection = node.getPosition();
-            ret = new ObjectLiteralNode(language.getFrozenStringLiteral(RopeConstants.EMPTY_ASCII_8BIT_ROPE));
+            ret = new ObjectLiteralNode(
+                    language.getFrozenStringLiteral(RopeConstants.EMPTY_BINARY_TSTRING, Encodings.BINARY));
             ret.unsafeSetSourceSection(sourceSection);
         } else {
             ret = node.getBody().accept(this);
@@ -2647,7 +2648,7 @@ public class BodyTranslator extends Translator {
     @Override
     public RubyNode visitRegexpNode(RegexpParseNode node) {
         final Rope rope = node.getValue();
-        final RubyEncoding encoding = Encodings.getBuiltInEncoding(rope.getEncoding().getIndex());
+        final RubyEncoding encoding = Encodings.getBuiltInEncoding(rope.getEncoding());
         final RegexpOptions options = node.getOptions().setLiteral(true);
         try {
             final RubyRegexp regexp = RubyRegexp.create(language, rope, encoding, options, currentNode);
@@ -2873,7 +2874,7 @@ public class BodyTranslator extends Translator {
 
         if (node.isFrozen()) {
             final ImmutableRubyString frozenString = language
-                    .getFrozenStringLiteral(nodeRope.getBytes(), nodeRope.getEncoding(), node.getCodeRange());
+                    .getFrozenStringLiteral(nodeRope.getBytes(), Encodings.getBuiltInEncoding(nodeRope.getEncoding()));
             ret = new FrozenStringLiteralNode(frozenString, FrozenStrings.EXPRESSION);
         } else {
             final LeafRope cachedRope = language.ropeCache
@@ -2888,7 +2889,7 @@ public class BodyTranslator extends Translator {
     public RubyNode visitSymbolNode(SymbolParseNode node) {
         final RubyNode ret = new ObjectLiteralNode(language.getSymbol(
                 node.getRope(),
-                Encodings.getBuiltInEncoding(node.getRope().getEncoding().getIndex())));
+                Encodings.getBuiltInEncoding(node.getRope().getEncoding())));
         ret.unsafeSetSourceSection(node.getPosition());
         return addNewlineIfNeeded(node, ret);
     }
