@@ -17,6 +17,8 @@ import com.oracle.truffle.api.library.CachedLibrary;
 import com.oracle.truffle.api.library.ExportLibrary;
 import com.oracle.truffle.api.library.ExportMessage;
 import com.oracle.truffle.api.profiles.ConditionProfile;
+import com.oracle.truffle.api.strings.AbstractTruffleString;
+import com.oracle.truffle.api.strings.TruffleString;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.encoding.RubyEncoding;
@@ -31,17 +33,19 @@ import org.truffleruby.language.dispatch.DispatchNode;
 import org.truffleruby.language.library.RubyStringLibrary;
 
 /** All ImmutableRubyString are interned and must be created through
- * {@link FrozenStringLiterals#getFrozenStringLiteral(Rope)}. */
+ * {@link FrozenStringLiterals#getFrozenStringLiteral}. */
 @ExportLibrary(InteropLibrary.class)
 @ExportLibrary(RubyStringLibrary.class)
 public class ImmutableRubyString extends ImmutableRubyObject implements TruffleObject {
 
     public final LeafRope rope;
+    public final TruffleString tstring;
     public final RubyEncoding encoding;
 
-    ImmutableRubyString(LeafRope rope, RubyEncoding encoding) {
-        assert rope.encoding == encoding.jcoding;
+    ImmutableRubyString(TruffleString tstring, LeafRope rope, RubyEncoding encoding) {
+        assert tstring.isCompatibleTo(encoding.tencoding);
         this.rope = rope;
+        this.tstring = tstring;
         this.encoding = encoding;
     }
 
@@ -65,6 +69,11 @@ public class ImmutableRubyString extends ImmutableRubyObject implements TruffleO
     @ExportMessage
     protected Rope getRope() {
         return rope;
+    }
+
+    @ExportMessage
+    protected AbstractTruffleString getTString() {
+        return tstring;
     }
 
     @ExportMessage

@@ -64,7 +64,6 @@ import org.truffleruby.core.rope.RopeNodes;
 import org.truffleruby.core.rope.RopeOperations;
 import org.truffleruby.core.rope.RopeWithEncoding;
 import org.truffleruby.core.string.RubyString;
-import org.truffleruby.core.string.StringNodes;
 import org.truffleruby.core.string.StringNodes.StringAppendPrimitiveNode;
 import org.truffleruby.core.string.StringOperations;
 import org.truffleruby.core.string.StringUtils;
@@ -286,7 +285,6 @@ public class TruffleRegexpNodes {
         @Child ToSNode toSNode = ToSNode.create();
         @Child DispatchNode copyNode = DispatchNode.create();
         @Child private SameOrEqualNode sameOrEqualNode = SameOrEqualNode.create();
-        @Child private StringNodes.MakeStringNode makeStringNode = StringNodes.MakeStringNode.create();
         @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.getFactory().createDispatched(2);
 
         @Specialization(
@@ -328,7 +326,7 @@ public class TruffleRegexpNodes {
                 final Rope rope = rubyStringLibrary.getRope(obj);
                 final RopeWithEncoding quotedRopeResult = ClassicRegexp
                         .quote19(rope, rubyStringLibrary.getEncoding(obj));
-                return makeStringNode.fromRope(quotedRopeResult.getRope(), quotedRopeResult.getEncoding());
+                return createString(quotedRopeResult.getRope(), quotedRopeResult.getEncoding());
             } else {
                 return toSNode.execute((RubyRegexp) obj);
             }

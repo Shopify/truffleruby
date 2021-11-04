@@ -13,8 +13,10 @@ import java.lang.reflect.Field;
 
 import com.oracle.truffle.api.interop.InteropException;
 import com.oracle.truffle.api.interop.InteropLibrary;
+import com.oracle.truffle.api.interop.TruffleObject;
+import com.oracle.truffle.api.library.ExportLibrary;
+import com.oracle.truffle.api.library.ExportMessage;
 import org.truffleruby.RubyContext;
-import org.truffleruby.SuppressFBWarnings;
 import org.truffleruby.core.FinalizationService;
 import org.truffleruby.core.FinalizerReference;
 
@@ -23,8 +25,8 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 
 import sun.misc.Unsafe;
 
-@SuppressFBWarnings("Nm")
-public final class Pointer implements AutoCloseable {
+@ExportLibrary(InteropLibrary.class)
+public final class Pointer implements AutoCloseable, TruffleObject {
 
     public static final Pointer NULL = new Pointer(0);
     public static final long SIZE = Long.BYTES;
@@ -78,6 +80,7 @@ public final class Pointer implements AutoCloseable {
         enableAutoreleaseUnsynchronized(context);
     }
 
+    @ExportMessage.Ignore
     public boolean isNull() {
         return address == 0;
     }
@@ -97,6 +100,16 @@ public final class Pointer implements AutoCloseable {
 
     public boolean isBounded() {
         return size != UNBOUNDED;
+    }
+
+    @ExportMessage
+    protected boolean isPointer() {
+        return true;
+    }
+
+    @ExportMessage
+    protected long asPointer() {
+        return address;
     }
 
     public void writeByte(long offset, byte b) {

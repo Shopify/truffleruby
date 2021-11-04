@@ -10,15 +10,12 @@
 package org.truffleruby.interop;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
-import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.Specialization;
 import org.truffleruby.builtins.CoreMethod;
 import org.truffleruby.builtins.CoreModule;
 import org.truffleruby.builtins.UnaryCoreMethodNode;
 import org.truffleruby.core.encoding.Encodings;
-import org.truffleruby.core.rope.Rope;
 import org.truffleruby.core.string.RubyString;
-import org.truffleruby.core.string.StringNodes;
 
 import com.oracle.truffle.api.source.SourceSection;
 import org.truffleruby.core.thread.ThreadBacktraceLocationNodes;
@@ -30,14 +27,13 @@ public class SourceLocationNodes {
     public abstract static class AbsolutePathNode extends UnaryCoreMethodNode {
         @TruffleBoundary
         @Specialization
-        protected Object absolutePath(RubySourceLocation location,
-                @Cached StringNodes.MakeStringNode makeStringNode) {
+        protected Object absolutePath(RubySourceLocation location) {
             final SourceSection sourceSection = location.sourceSection;
             if (!sourceSection.isAvailable()) {
                 return coreStrings().UNKNOWN.createInstance(getContext());
             }
 
-            return ThreadBacktraceLocationNodes.AbsolutePathNode.getAbsolutePath(sourceSection, makeStringNode, this);
+            return ThreadBacktraceLocationNodes.AbsolutePathNode.getAbsolutePath(sourceSection, this);
         }
     }
 
@@ -45,15 +41,14 @@ public class SourceLocationNodes {
     public abstract static class PathNode extends UnaryCoreMethodNode {
         @TruffleBoundary
         @Specialization
-        protected RubyString path(RubySourceLocation location,
-                @Cached StringNodes.MakeStringNode makeStringNode) {
+        protected RubyString path(RubySourceLocation location) {
             final SourceSection sourceSection = location.sourceSection;
 
             if (!sourceSection.isAvailable()) {
                 return coreStrings().UNKNOWN.createInstance(getContext());
             } else {
-                final Rope path = getLanguage().getPathToRopeCache().getCachedPath(sourceSection.getSource());
-                return makeStringNode.fromRope(path, Encodings.UTF_8);
+                var path = getLanguage().getPathToRopeCache().getCachedPath(sourceSection.getSource());
+                return createString(path, Encodings.UTF_8);
             }
         }
     }

@@ -43,7 +43,6 @@ import java.util.List;
 import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.frame.FrameDescriptor;
-import org.jcodings.specific.UTF8Encoding;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.aot.ParserCache;
@@ -158,12 +157,6 @@ public class TranslatorDriver {
 
         if (language.options.FROZEN_STRING_LITERALS) {
             parserConfiguration.setFrozenStringLiteral(true);
-        }
-
-        if (rubySource.getRope() != null) {
-            parserConfiguration.setDefaultEncoding(rubySource.getRope().getEncoding());
-        } else {
-            parserConfiguration.setDefaultEncoding(UTF8Encoding.INSTANCE);
         }
 
         // Parse to the JRuby AST
@@ -385,7 +378,7 @@ public class TranslatorDriver {
 
     public static RootParseNode parseToJRubyAST(RubyContext context, RubySource rubySource, StaticScope blockScope,
             ParserConfiguration configuration, RubyDeferredWarnings rubyWarnings) {
-        LexerSource lexerSource = new LexerSource(rubySource, configuration.getDefaultEncoding());
+        LexerSource lexerSource = new LexerSource(rubySource);
         // We only need to pass in current scope if we are evaluating as a block (which
         // is only done for evals).  We need to pass this in so that we can appropriately scope
         // down to captured scopes when we are parsing.

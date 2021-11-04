@@ -13,7 +13,6 @@ import org.jcodings.specific.UTF8Encoding;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.binding.RubyBinding;
-import org.truffleruby.core.encoding.Encodings;
 import org.truffleruby.core.rope.Rope;
 import org.truffleruby.core.string.StringOperations;
 import org.truffleruby.language.backtrace.InternalRootNode;
@@ -25,11 +24,8 @@ public class RubyEvalInteractiveRootNode extends RubyBaseRootNode implements Int
 
     private final Rope sourceRope;
 
-    private final RubyLanguage language;
-
     public RubyEvalInteractiveRootNode(RubyLanguage language, Source source) {
         super(language, null, null);
-        this.language = language;
         this.sourceRope = StringOperations.encodeRope(source.getCharacters().toString(), UTF8Encoding.INSTANCE);
     }
 
@@ -44,7 +40,7 @@ public class RubyEvalInteractiveRootNode extends RubyBaseRootNode implements Int
                 .send(
                         interactiveBinding,
                         "eval",
-                        StringOperations.createString(this, sourceRope, Encodings.UTF_8));
+                        StringOperations.createUTF8String(context, getLanguage(), sourceRope));
     }
 
     @Override

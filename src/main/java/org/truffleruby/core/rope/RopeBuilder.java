@@ -11,6 +11,7 @@ package org.truffleruby.core.rope;
 
 import static org.truffleruby.core.rope.CodeRange.CR_UNKNOWN;
 
+import com.oracle.truffle.api.strings.InternalByteArray;
 import org.jcodings.Encoding;
 import org.jcodings.specific.ASCIIEncoding;
 import org.truffleruby.collections.ByteArrayBuilder;
@@ -48,6 +49,10 @@ public class RopeBuilder extends ByteArrayBuilder {
         final RopeBuilder builder = new RopeBuilder(len);
         builder.append(wrap, index, len);
         return builder;
+    }
+
+    public static RopeBuilder createRopeBuilder(InternalByteArray bytes) {
+        return createRopeBuilder(bytes.getArray(), bytes.getOffset(), bytes.getLength());
     }
 
     public Encoding getEncoding() {
