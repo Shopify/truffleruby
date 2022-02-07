@@ -145,7 +145,6 @@ import org.truffleruby.core.rope.RopeBuilder;
 import org.truffleruby.core.rope.RopeConstants;
 import org.truffleruby.core.rope.RopeGuards;
 import org.truffleruby.core.rope.RopeNodes;
-import org.truffleruby.core.rope.RopeNodes.AsciiOnlyNode;
 import org.truffleruby.core.rope.RopeNodes.BytesNode;
 import org.truffleruby.core.rope.RopeNodes.CalculateCharacterLengthNode;
 import org.truffleruby.core.rope.RopeNodes.CharacterLengthNode;
@@ -1633,6 +1632,8 @@ public abstract class StringNodes {
         protected int getCodeRange(Object string,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached CodeRangeNode codeRangeNode) {
+            final var tString = strings.getTString(string);
+
             return codeRangeNode.execute(strings.getRope(string)).toInt();
         }
 
@@ -3399,16 +3400,20 @@ public abstract class StringNodes {
         protected boolean isCharacterPrintable(Object character,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached ConditionProfile is7BitProfile,
-                @Cached AsciiOnlyNode asciiOnlyNode,
-                @Cached GetCodePointNode getCodePointNode) {
-            final Rope rope = strings.getRope(character);
+                @Cached TruffleString.GetByteCodeRangeNode getCodeRangeNode,
+                @Cached TruffleString.CodePointAtByteIndexNode getCodePointNode) {
             final RubyEncoding encoding = strings.getEncoding(character);
-            final int codePoint = getCodePointNode.executeGetCodePoint(encoding, rope, 0);
+            final var tString = strings.getTString(character);
 
-            if (is7BitProfile.profile(asciiOnlyNode.execute(rope))) {
+            // TODO (nirvdrum 04-Feb-22): Evaluate whether using CodePointAtByteIndexNode would be more appropriate/efficient.
+            final int codePoint = getCodePointNode.execute(tString, 0, encoding.tencoding);
+            final boolean asciiOnly = getCodeRangeNode.execute(tString,
+                    encoding.tencoding) == TruffleString.CodeRange.ASCII;
+
+            if (is7BitProfile.profile(asciiOnly)) {
                 return StringSupport.isAsciiPrintable(codePoint);
             } else {
-                return isMBCPrintable(rope.getEncoding(), codePoint);
+                return isMBCPrintable(encoding.jcoding, codePoint);
             }
         }
 
