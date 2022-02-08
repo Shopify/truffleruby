@@ -5363,12 +5363,18 @@ public abstract class StringNodes {
 
         @Specialization(guards = "libString.isRubyString(string)")
         protected Object stringToNullTerminatedByteArray(Object string,
-                @Cached BytesNode bytesNode,
+                @Cached TruffleString.CopyToByteArrayNode copyToByteArrayNode,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString) {
+            final var encoding = libString.getEncoding(string);
+            final var tstring = libString.getTString(string);
+            final int bytesToCopy = tstring.byteLength(encoding.tencoding);
+            final var bytesWithNull = new byte[bytesToCopy + 1];
+
             // NOTE: we always need one copy here, as native code could modify the passed byte[]
-            final byte[] bytes = bytesNode.execute(libString.getRope(string));
-            final byte[] bytesWithNull = new byte[bytes.length + 1];
-            System.arraycopy(bytes, 0, bytesWithNull, 0, bytes.length);
+            copyToByteArrayNode.execute(tstring,
+                    0, bytesWithNull,
+                    0, bytesToCopy,
+                    encoding.tencoding);
 
             return getContext().getEnv().asGuestValue(bytesWithNull);
         }
