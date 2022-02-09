@@ -3406,7 +3406,6 @@ public abstract class StringNodes {
             final RubyEncoding encoding = strings.getEncoding(character);
             final var tString = strings.getTString(character);
 
-            // TODO (nirvdrum 04-Feb-22): Evaluate whether using CodePointAtByteIndexNode would be more appropriate/efficient.
             final int codePoint = getCodePointNode.execute(tString, 0, encoding.tencoding);
             final boolean asciiOnly = TStringGuards.is7Bit(tString, encoding, getCodeRangeNode);
 
