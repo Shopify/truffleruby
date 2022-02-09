@@ -5371,10 +5371,8 @@ public abstract class StringNodes {
             final var bytesWithNull = new byte[bytesToCopy + 1];
 
             // NOTE: we always need one copy here, as native code could modify the passed byte[]
-            copyToByteArrayNode.execute(tstring,
-                    0, bytesWithNull,
-                    0, bytesToCopy,
-                    encoding.tencoding);
+            copyToByteArrayNode.execute(tstring, 0,
+                    bytesWithNull, 0, bytesToCopy, encoding.tencoding);
 
             return getContext().getEnv().asGuestValue(bytesWithNull);
         }
