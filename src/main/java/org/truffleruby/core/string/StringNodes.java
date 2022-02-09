@@ -117,6 +117,7 @@ import org.truffleruby.core.encoding.EncodingNodes.GetActualEncodingNode;
 import org.truffleruby.core.encoding.EncodingNodes.NegotiateCompatibleEncodingNode;
 import org.truffleruby.core.encoding.Encodings;
 import org.truffleruby.core.encoding.RubyEncoding;
+import org.truffleruby.core.encoding.TStringGuards;
 import org.truffleruby.core.encoding.TStringUtils;
 import org.truffleruby.core.format.FormatExceptionTranslator;
 import org.truffleruby.core.format.exceptions.FormatException;
@@ -3407,8 +3408,7 @@ public abstract class StringNodes {
 
             // TODO (nirvdrum 04-Feb-22): Evaluate whether using CodePointAtByteIndexNode would be more appropriate/efficient.
             final int codePoint = getCodePointNode.execute(tString, 0, encoding.tencoding);
-            final boolean asciiOnly = getCodeRangeNode.execute(tString,
-                    encoding.tencoding) == TruffleString.CodeRange.ASCII;
+            final boolean asciiOnly = TStringGuards.is7Bit(tString, encoding, getCodeRangeNode);
 
             if (is7BitProfile.profile(asciiOnly)) {
                 return StringSupport.isAsciiPrintable(codePoint);
