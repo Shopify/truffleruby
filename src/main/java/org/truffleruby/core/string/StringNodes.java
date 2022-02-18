@@ -135,7 +135,6 @@ import org.truffleruby.core.range.RubyObjectRange;
 import org.truffleruby.core.regexp.RubyRegexp;
 import org.truffleruby.core.rope.Bytes;
 import org.truffleruby.core.rope.CodeRange;
-import org.truffleruby.core.rope.LazyIntRope;
 import org.truffleruby.core.rope.LeafRope;
 import org.truffleruby.core.rope.NativeRope;
 import org.truffleruby.core.rope.Rope;
@@ -5020,21 +5019,71 @@ public abstract class StringNodes {
     @NodeChild(value = "raiseOnError", type = RubyNode.class)
     public abstract static class StringToInumPrimitiveNode extends PrimitiveNode {
 
-        @CreateCast("string")
-        protected RubyBaseNodeWithExecute coerceStringToRope(RubyBaseNodeWithExecute string) {
-            return ToRopeNodeGen.create(string);
-        }
-
-        @Specialization(guards = "isLazyIntRopeOptimizable(rope, fixBase)")
-        protected int stringToInumIntRope(Rope rope, int fixBase, boolean strict, boolean raiseOnError) {
-            return ((LazyIntRope) rope).getValue();
-        }
-
-        @Specialization(guards = "!isLazyIntRopeOptimizable(rope, fixBase)")
-        protected Object stringToInum(Rope rope, int fixBase, boolean strict, boolean raiseOnError,
+        @Specialization(guards = "base == 10")
+        protected Object base10(Object string, int base, boolean strict, boolean raiseOnError,
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
+                @Cached TruffleString.ParseLongNode parseLongNode,
+                @Cached BranchProfile notLazyLongProfile,
                 @Cached FixnumOrBignumNode fixnumOrBignumNode,
                 @Cached BytesNode bytesNode,
                 @Cached BranchProfile exceptionProfile) {
+            var tstring = libString.getTString(string);
+            try {
+                return parseLongNode.execute(tstring, 10);
+            } catch (TruffleString.NumberFormatException e) {
+                notLazyLongProfile.enter();
+                Rope rope = libString.getRope(string);
+                return bytesToInum(rope, base, strict, raiseOnError, fixnumOrBignumNode, bytesNode, exceptionProfile);
+            }
+        }
+
+        @Specialization(guards = "base == 0")
+        protected Object base0(Object string, int base, boolean strict, boolean raiseOnError,
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
+                @Cached TruffleString.ParseLongNode parseLongNode,
+                @Cached TruffleString.CodePointAtByteIndexNode codePointNode,
+                @Cached ConditionProfile notEmptyProfile,
+                @Cached BranchProfile notLazyLongProfile,
+                @Cached FixnumOrBignumNode fixnumOrBignumNode,
+                @Cached BytesNode bytesNode,
+                @Cached BranchProfile exceptionProfile) {
+            var tstring = libString.getTString(string);
+            var enc = libString.getEncoding(string);
+            var tenc = enc.tencoding;
+            var len = tstring.byteLength(tenc);
+
+            if (notEmptyProfile.profile(enc.jcoding.isAsciiCompatible() && len >= 1)) {
+                int first = codePointNode.execute(tstring, 0, tenc);
+                int second;
+                if ((first >= '1' && first <= '9') ||
+                        (len >= 2 && (first == '-' || first == '+') &&
+                                (second = codePointNode.execute(tstring, 1, tenc)) >= '1' && second <= '9')) {
+                    try {
+                        return parseLongNode.execute(tstring, 10);
+                    } catch (TruffleString.NumberFormatException e) {
+                        notLazyLongProfile.enter();
+                    }
+                }
+            }
+
+            Rope rope = libString.getRope(string);
+            return bytesToInum(rope, base, strict, raiseOnError, fixnumOrBignumNode, bytesNode, exceptionProfile);
+        }
+
+        @Specialization(guards = { "base != 10", "base != 0" })
+        protected Object otherBase(Object string, int base, boolean strict, boolean raiseOnError,
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
+                @Cached FixnumOrBignumNode fixnumOrBignumNode,
+                @Cached BytesNode bytesNode,
+                @Cached BranchProfile exceptionProfile) {
+            Rope rope = libString.getRope(string);
+            return bytesToInum(rope, base, strict, raiseOnError, fixnumOrBignumNode, bytesNode, exceptionProfile);
+        }
+
+        private Object bytesToInum(Rope rope, int base, boolean strict, boolean raiseOnError,
+                FixnumOrBignumNode fixnumOrBignumNode,
+                BytesNode bytesNode,
+                BranchProfile exceptionProfile) {
             try {
                 return ConvertBytes.bytesToInum(
                         getContext(),
@@ -5042,7 +5091,7 @@ public abstract class StringNodes {
                         fixnumOrBignumNode,
                         bytesNode,
                         rope,
-                        fixBase,
+                        base,
                         strict);
             } catch (RaiseException e) {
                 exceptionProfile.enter();
@@ -5051,10 +5100,6 @@ public abstract class StringNodes {
                 }
                 throw e;
             }
-        }
-
-        protected boolean isLazyIntRopeOptimizable(Rope rope, int base) {
-            return (base == 0 || base == 10) && rope instanceof LazyIntRope;
         }
     }
 

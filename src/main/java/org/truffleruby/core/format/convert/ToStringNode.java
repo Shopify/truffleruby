@@ -20,7 +20,6 @@ import org.truffleruby.core.format.exceptions.NoImplicitConversionException;
 import org.truffleruby.core.kernel.KernelNodes;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.rope.CodeRange;
-import org.truffleruby.core.rope.LazyIntRope;
 import org.truffleruby.core.rope.Rope;
 import org.truffleruby.core.rope.RopeConstants;
 import org.truffleruby.core.rope.RopeOperations;
@@ -77,13 +76,6 @@ public abstract class ToStringNode extends FormatNode {
         return valueOnNil;
     }
 
-    @TruffleBoundary
-    @Specialization(guards = "convertNumbersToStrings")
-    protected Rope toString(int value) {
-        return new LazyIntRope(value);
-    }
-
-    @TruffleBoundary
     @Specialization(guards = "convertNumbersToStrings")
     protected Rope toString(long value) {
         return RopeOperations.encodeAscii(Long.toString(value), USASCIIEncoding.INSTANCE);

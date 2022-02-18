@@ -418,28 +418,6 @@ public abstract class RopeNodes {
 
         @TruffleBoundary
         @Specialization
-        protected Object debugPrintLazyInt(LazyIntRope rope, int currentLevel, boolean printString) {
-            printPreamble(currentLevel);
-
-            // Converting a rope to a java.lang.String may populate the byte[], so we need to query for the array status beforehand.
-            final boolean bytesAreNull = rope.getRawBytes() == null;
-
-            System.err.println(String.format(
-                    "%s (%s; BN: %b; BL: %d; CL: %d; CR: %s; V: %d, E: %s)",
-                    printString ? RopeOperations.escape(rope) : "<skipped>",
-                    rope.getClass().getSimpleName(),
-                    bytesAreNull,
-                    rope.byteLength(),
-                    rope.characterLength(),
-                    rope.getCodeRange(),
-                    rope.getValue(),
-                    rope.getEncoding()));
-
-            return nil;
-        }
-
-        @TruffleBoundary
-        @Specialization
         protected Object debugPrintNative(NativeRope rope, int currentLevel, boolean printString) {
             printPreamble(currentLevel);
 
@@ -553,12 +531,6 @@ public abstract class RopeNodes {
         @Specialization(guards = "rope.getRawBytes() == null")
         protected int getByte(NativeRope rope, int index) {
             return rope.get(index) & 0xff;
-        }
-
-        @TruffleBoundary
-        @Specialization(guards = "rope.getRawBytes() == null")
-        protected int getByte(LazyIntRope rope, int index) {
-            return rope.getBytes()[index] & 0xff;
         }
 
         @Specialization(guards = "rope.getRawBytes() == null")

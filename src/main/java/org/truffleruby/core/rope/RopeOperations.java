@@ -334,12 +334,7 @@ public class RopeOperations {
                 continue;
             }
 
-            final byte[] rawBytes;
-            if (current instanceof LazyIntRope) {
-                rawBytes = current.getBytesSlow();
-            } else {
-                rawBytes = current.getRawBytes();
-            }
+            final byte[] rawBytes = current.getRawBytes();
 
             if (rawBytes != null) {
                 // In the absence of any SubstringRopes, we always take the full contents of the current rope.
