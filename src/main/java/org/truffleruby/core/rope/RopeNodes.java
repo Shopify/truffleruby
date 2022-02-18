@@ -22,7 +22,6 @@ import static org.truffleruby.core.rope.CodeRange.CR_VALID;
 import java.util.Arrays;
 
 import com.oracle.truffle.api.TruffleSafepoint;
-import com.oracle.truffle.api.dsl.Bind;
 import com.oracle.truffle.api.dsl.Cached.Exclusive;
 import com.oracle.truffle.api.dsl.Cached.Shared;
 import com.oracle.truffle.api.profiles.LoopConditionProfile;
@@ -31,7 +30,6 @@ import org.jcodings.specific.ASCIIEncoding;
 import org.jcodings.specific.USASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.truffleruby.core.encoding.RubyEncoding;
-import org.truffleruby.core.rope.ConcatRope.ConcatState;
 import org.truffleruby.core.string.StringAttributes;
 import org.truffleruby.core.string.StringSupport;
 import org.truffleruby.language.NotProvided;
@@ -420,68 +418,6 @@ public abstract class RopeNodes {
 
         @TruffleBoundary
         @Specialization
-        protected Object debugPrintConcatRopeBytes(ConcatRope rope, int currentLevel, boolean printString) {
-            printPreamble(currentLevel);
-
-            final ConcatState state = rope.getState();
-
-            // Before the print, as `toString()` may cause the bytes to become populated.
-            final boolean bytesAreNull = rope.getRawBytes() == null;
-
-            if (state.isFlattened()) {
-                System.err.println(String.format(
-                        "%s (%s; BN: %b; BL: %d; CL: %d; CR: %s; E: %s)",
-                        printString ? RopeOperations.escape(rope) : "<skipped>",
-                        rope.getClass().getSimpleName(),
-                        bytesAreNull,
-                        rope.byteLength(),
-                        rope.characterLength(),
-                        rope.getCodeRange(),
-                        rope.getEncoding()));
-            } else {
-                System.err.println(String.format(
-                        "%s (%s; BN: %b; BL: %d; CL: %d; CR: %s; E: %s)",
-                        printString ? RopeOperations.escape(rope) : "<skipped>",
-                        rope.getClass().getSimpleName(),
-                        bytesAreNull,
-                        rope.byteLength(),
-                        rope.characterLength(),
-                        rope.getCodeRange(),
-                        rope.getEncoding()));
-
-                executeDebugPrint(state.left, currentLevel + 1, printString);
-                executeDebugPrint(state.right, currentLevel + 1, printString);
-            }
-
-            return nil;
-        }
-
-        @TruffleBoundary
-        @Specialization
-        protected Object debugPrintRepeatingRope(RepeatingRope rope, int currentLevel, boolean printString) {
-            printPreamble(currentLevel);
-
-            // Converting a rope to a java.lang.String may populate the byte[], so we need to query for the array status beforehand.
-            final boolean bytesAreNull = rope.getRawBytes() == null;
-
-            System.err.println(String.format(
-                    "%s (%s; BN: %b; BL: %d; CL: %d; CR: %s; T: %d; E: %s)",
-                    printString ? RopeOperations.escape(rope) : "<skipped>",
-                    rope.getClass().getSimpleName(),
-                    bytesAreNull,
-                    rope.byteLength(),
-                    rope.characterLength(),
-                    rope.getCodeRange(),
-                    rope.getTimes(),
-                    rope.getEncoding()));
-
-            executeDebugPrint(rope.getChild(), currentLevel + 1, printString);
-
-            return nil;
-        }
-
-        @TruffleBoundary
-        @Specialization
         protected Object debugPrintLazyInt(LazyIntRope rope, int currentLevel, boolean printString) {
             printPreamble(currentLevel);
 
@@ -634,55 +570,6 @@ public abstract class RopeNodes {
             }
 
             return rope.getChild().getRawBytes()[index + rope.getByteOffset()] & 0xff;
-        }
-
-        @Specialization(guards = "rope.getRawBytes() == null")
-        protected int getByteRepeatingRope(RepeatingRope rope, int index,
-                @Cached ConditionProfile childRawBytesNullProfile,
-                @Cached ByteSlowNode slowByte) {
-            if (childRawBytesNullProfile.profile(rope.getChild().getRawBytes() == null)) {
-                return slowByte.execute(rope, index) & 0xff;
-            }
-
-            return rope.getChild().getRawBytes()[index % rope.getChild().byteLength()] & 0xff;
-        }
-
-        // NOTE(norswap, 12 Jan 2021): The order of the two next specialization is significant.
-        //   Normally, @Bind expressions should only be run per node, but that's not the case currently (GR-28671).
-        //   Therefore it's important to test isChildren first, as it's possible to transition from children to bytes
-        //   but not the other way around.
-
-        @Specialization(guards = "!state.isFlattened()")
-        protected int getByteConcatRope(ConcatRope rope, int index,
-                @Cached ConditionProfile stateBytesNotNull,
-                @Bind("rope.getState(stateBytesNotNull)") ConcatState state,
-                @Cached ConditionProfile chooseLeftChildProfile,
-                @Cached ConditionProfile leftChildRawBytesNullProfile,
-                @Cached ConditionProfile rightChildRawBytesNullProfile,
-                @Cached ByteSlowNode byteSlowLeft,
-                @Cached ByteSlowNode byteSlowRight) {
-            if (chooseLeftChildProfile.profile(index < state.left.byteLength())) {
-                if (leftChildRawBytesNullProfile.profile(state.left.getRawBytes() == null)) {
-                    return byteSlowLeft.execute(state.left, index) & 0xff;
-                }
-
-                return state.left.getRawBytes()[index] & 0xff;
-            }
-
-            if (rightChildRawBytesNullProfile.profile(state.right.getRawBytes() == null)) {
-                return byteSlowRight.execute(state.right, index - state.left.byteLength()) & 0xff;
-            }
-
-            return state.right.getRawBytes()[index - state.left.byteLength()] & 0xff;
-        }
-
-        // Necessary because getRawBytes() might return null, but then be populated and the children nulled
-        // before we get to run the other getByteConcatRope.
-        @Specialization(guards = "state.isFlattened()")
-        protected int getByteConcatRope(ConcatRope rope, int index,
-                @Cached ConditionProfile stateBytesNotNull,
-                @Bind("rope.getState(stateBytesNotNull)") ConcatState state) {
-            return state.bytes[index] & 0xff;
         }
     }
 

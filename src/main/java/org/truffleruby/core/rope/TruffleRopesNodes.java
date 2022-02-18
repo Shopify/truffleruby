@@ -19,7 +19,6 @@ import org.truffleruby.cext.CExtNodes;
 import org.truffleruby.core.encoding.Encodings;
 import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.encoding.TStringUtils;
-import org.truffleruby.core.rope.ConcatRope.ConcatState;
 import org.truffleruby.core.string.RubyString;
 import org.truffleruby.core.string.StringNodes;
 import org.truffleruby.core.string.StringOperations;
@@ -112,12 +111,8 @@ public abstract class TruffleRopesNodes {
         protected static String getStructure(Rope rope) {
             if (rope instanceof LeafRope) {
                 return getStructure((LeafRope) rope);
-            } else if (rope instanceof ConcatRope) {
-                return getStructure((ConcatRope) rope);
             } else if (rope instanceof SubstringRope) {
                 return getStructure((SubstringRope) rope);
-            } else if (rope instanceof RepeatingRope) {
-                return getStructure((RepeatingRope) rope);
             } else {
                 return "(unknown rope class: " + rope.getClass() + ")";
             }
@@ -127,22 +122,11 @@ public abstract class TruffleRopesNodes {
             return RopeOperations.escape(rope);
         }
 
-        private static String getStructure(ConcatRope rope) {
-            final ConcatState state = rope.getState();
-            return state.isFlattened()
-                    ? "(\"flat concat rope\"; " + RopeOperations.escape(rope) + ")"
-                    : "(" + getStructure(state.left) + " + " + getStructure(state.right) + ")";
-        }
-
         private static String getStructure(SubstringRope rope) {
             final Rope child = rope.getChild();
             final int characterOffset = RopeOperations
                     .strLength(child.getEncoding(), child.getBytes(), 0, rope.getByteOffset());
             return getStructure(child) + "[" + characterOffset + ", " + rope.characterLength() + "]";
-        }
-
-        private static String getStructure(RepeatingRope rope) {
-            return "(" + getStructure(rope.getChild()) + "*" + rope.getTimes() + ")";
         }
 
     }
