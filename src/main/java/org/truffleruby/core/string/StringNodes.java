@@ -1731,7 +1731,7 @@ public abstract class StringNodes {
     @ImportStatic(StringGuards.class)
     public abstract static class LstripBangNode extends CoreMethodArrayArgumentsNode {
 
-        @Child GetCodePointNode getCodePointNode = GetCodePointNode.create();
+        @Child TruffleString.CodePointAtByteIndexNode codePointAtByteIndexNode = TruffleString.CodePointAtByteIndexNode.create();
         @Child TruffleString.SubstringByteIndexNode substringNode = TruffleString.SubstringByteIndexNode.create();
 
         @Specialization(guards = "isEmpty(string.rope)")
@@ -1750,7 +1750,7 @@ public abstract class StringNodes {
             final Rope rope = string.rope;
             var tstring = string.tstring;
             var encoding = string.encoding;
-            final int firstCodePoint = getCodePointNode.executeGetCodePoint(encoding, rope, 0);
+            int firstCodePoint = codePointAtByteIndexNode.execute(tstring, 0, encoding.tencoding);
 
             // Check the first code point to see if it's a space. In the case of strings without leading spaces,
             // this check can avoid having to materialize the entire byte[] (a potentially expensive operation
@@ -1788,7 +1788,7 @@ public abstract class StringNodes {
 
             int p = s;
             while (p < end) {
-                int c = getCodePointNode.executeGetCodePoint(enc, rope, p);
+                int c = codePointAtByteIndexNode.execute(tstring, p, enc.tencoding);
                 if (!ASCIIEncoding.INSTANCE.isSpace(c)) {
                     break;
                 }
