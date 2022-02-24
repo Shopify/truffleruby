@@ -3446,7 +3446,6 @@ public abstract class StringNodes {
         @Child private BytesNode bytesNode = BytesNode.create();
         @Child private CallBlockNode yieldNode = CallBlockNode.create();
         @Child CodeRangeNode codeRangeNode = CodeRangeNode.create();
-        @Child private GetCodePointNode getCodePointNode = GetCodePointNode.create();
 
         private static final int SUBSTRING_CREATED = -1;
 
@@ -3521,7 +3520,8 @@ public abstract class StringNodes {
                 @Cached ConditionProfile executeBlockProfile,
                 @Cached ConditionProfile growArrayProfile,
                 @Cached ConditionProfile trailingSubstringProfile,
-                @Cached TruffleString.SubstringByteIndexNode substringNode) {
+                @Cached TruffleString.SubstringByteIndexNode substringNode,
+                @Cached TruffleString.CodePointAtByteIndexNode codePointAtByteIndexNode) {
             Object[] ret = new Object[10];
             int storeIndex = 0;
 
@@ -3542,7 +3542,7 @@ public abstract class StringNodes {
 
             int e = 0, b = 0;
             while (p < end) {
-                final int c = getCodePointNode.executeGetCodePoint(encoding, rope, p);
+                int c = codePointAtByteIndexNode.execute(tString, p, encoding.tencoding);
                 p += StringSupport.characterLength(enc, cr, bytes, p, end, true);
 
                 if (skip) {
