@@ -5126,14 +5126,15 @@ public abstract class StringNodes {
     public abstract static class StringSubstringPrimitiveNode extends CoreMethodArrayArgumentsNode {
 
         @Child NormalizeIndexNode normalizeIndexNode = NormalizeIndexNode.create();
-        @Child CharacterLengthNode characterLengthNode = CharacterLengthNode.create();
+        @Child TruffleString.CodePointLengthNode codePointLengthNode = TruffleString.CodePointLengthNode.create();
         @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
         @Child TruffleString.SubstringByteIndexNode substringNode;
 
         public abstract Object execute(Object string, int index, int length);
 
         @Specialization(guards = {
-                "!indexTriviallyOutOfBounds(libString.getRope(string), characterLengthNode, index, length)",
+                "!indexTriviallyOutOfBounds(libString.getTString(string), codePointLengthNode, " +
+                        "libString.getEncoding(string), index, length)",
                 "noCharacterSearch(libString.getRope(string), singleByteOptimizableNode)" })
         protected Object stringSubstringSingleByte(Object string, int index, int length,
                 @Cached @Shared("negativeIndexProfile") ConditionProfile negativeIndexProfile,
@@ -5141,23 +5142,25 @@ public abstract class StringNodes {
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString) {
             final Rope rope = libString.getRope(string);
             final RubyEncoding encoding = libString.getEncoding(string);
-            final int ropeCharacterLength = characterLengthNode.execute(rope);
-            final int normalizedIndex = normalizeIndexNode.executeNormalize(index, ropeCharacterLength);
+            var tstring = libString.getTString(string);
+            int stringCharacterLength = codePointLengthNode.execute(tstring, encoding.tencoding);
+            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCharacterLength);
             int characterLength = length;
 
             if (negativeIndexProfile.profile(normalizedIndex < 0)) {
                 return nil;
             }
 
-            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > ropeCharacterLength)) {
-                characterLength = ropeCharacterLength - normalizedIndex;
+            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCharacterLength)) {
+                characterLength = stringCharacterLength - normalizedIndex;
             }
 
             return makeRope(encoding, rope, normalizedIndex, characterLength);
         }
 
         @Specialization(guards = {
-                "!indexTriviallyOutOfBounds(libString.getRope(string), characterLengthNode, index, length)",
+                "!indexTriviallyOutOfBounds(libString.getTString(string), codePointLengthNode, " +
+                        "libString.getEncoding(string), index, length)",
                 "!noCharacterSearch(libString.getRope(string), singleByteOptimizableNode)" })
         protected Object stringSubstringGeneric(Object string, int index, int length,
                 @Cached @Shared("negativeIndexProfile") ConditionProfile negativeIndexProfile,
@@ -5170,16 +5173,17 @@ public abstract class StringNodes {
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString) {
             final Rope rope = libString.getRope(string);
             final RubyEncoding encoding = libString.getEncoding(string);
-            final int ropeCharacterLength = characterLengthNode.execute(rope);
-            final int normalizedIndex = normalizeIndexNode.executeNormalize(index, ropeCharacterLength);
+            var tstring = libString.getTString(string);
+            int stringCharacterLength = codePointLengthNode.execute(tstring, encoding.tencoding);
+            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCharacterLength);
             int characterLength = length;
 
             if (negativeIndexProfile.profile(normalizedIndex < 0)) {
                 return nil;
             }
 
-            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > ropeCharacterLength)) {
-                characterLength = ropeCharacterLength - normalizedIndex;
+            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCharacterLength)) {
+                characterLength = stringCharacterLength - normalizedIndex;
             }
 
             final SearchResult searchResult = searchForSingleByteOptimizableDescendant(
@@ -5208,9 +5212,10 @@ public abstract class StringNodes {
         }
 
         @Specialization(guards = {
-                "indexTriviallyOutOfBounds(strings.getRope(string), characterLengthNode, index, length)" })
+                "indexTriviallyOutOfBounds(libString.getTString(string), codePointLengthNode, " +
+                        "libString.getEncoding(string), index, length)" })
         protected Object stringSubstringNegativeLength(Object string, int index, int length,
-                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) {
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString) {
             return nil;
         }
 
@@ -5300,11 +5305,11 @@ public abstract class StringNodes {
             return createSubString(substringNode, tstring, encoding, beg, byteLength);
         }
 
-        protected static boolean indexTriviallyOutOfBounds(Rope rope,
-                CharacterLengthNode characterLengthNode,
+        protected static boolean indexTriviallyOutOfBounds(AbstractTruffleString tstring,
+                TruffleString.CodePointLengthNode codePointLengthNode, RubyEncoding encoding,
                 int index, int length) {
             return (length < 0) ||
-                    (index > characterLengthNode.execute(rope));
+                    (index > codePointLengthNode.execute(tstring, encoding.tencoding));
         }
 
         protected static boolean noCharacterSearch(Rope rope,
