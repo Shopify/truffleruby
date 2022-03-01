@@ -2767,17 +2767,18 @@ public abstract class StringNodes {
     @ImportStatic(StringGuards.class)
     public abstract static class ReverseBangNode extends CoreMethodArrayArgumentsNode {
 
-        @Child CharacterLengthNode characterLengthNode = CharacterLengthNode.create();
+        @Child
+        TruffleString.CodePointLengthNode codePointLengthNode = TruffleString.CodePointLengthNode.create();
         @Child private TruffleString.FromByteArrayNode fromByteArrayNode = TruffleString.FromByteArrayNode.create();
 
-        @Specialization(guards = "reverseIsEqualToSelf(string, characterLengthNode)")
+        @Specialization(guards = "reverseIsEqualToSelf(string.getTString(), codePointLengthNode, string.encoding)")
         protected RubyString reverseNoOp(RubyString string) {
             return string;
         }
 
         @Specialization(
                 guards = {
-                        "!reverseIsEqualToSelf(string, characterLengthNode)",
+                        "!reverseIsEqualToSelf(string.getTString(), codePointLengthNode, string.encoding)",
                         "isSingleByteOptimizable(string, singleByteOptimizableNode)" })
         protected RubyString reverseSingleByteOptimizable(RubyString string,
                 @Cached BytesNode bytesNode,
@@ -2797,7 +2798,7 @@ public abstract class StringNodes {
 
         @Specialization(
                 guards = {
-                        "!reverseIsEqualToSelf(string, characterLengthNode)",
+                        "!reverseIsEqualToSelf(string.getTString(), codePointLengthNode, string.encoding)",
                         "!isSingleByteOptimizable(string, singleByteOptimizableNode)" })
         protected RubyString reverse(RubyString string,
                 @Cached BytesNode bytesNode,
@@ -2831,9 +2832,10 @@ public abstract class StringNodes {
             return string;
         }
 
-        public static boolean reverseIsEqualToSelf(RubyString string,
-                CharacterLengthNode characterLengthNode) {
-            return characterLengthNode.execute(string.rope) <= 1;
+        public static boolean reverseIsEqualToSelf(AbstractTruffleString string,
+                                                   TruffleString.CodePointLengthNode codePointLengthNode,
+                                                   RubyEncoding encoding) {
+            return codePointLengthNode.execute(string, encoding.tencoding) <= 1;
         }
     }
 
