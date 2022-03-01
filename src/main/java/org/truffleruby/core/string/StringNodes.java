@@ -5144,16 +5144,16 @@ public abstract class StringNodes {
             final Rope rope = libString.getRope(string);
             final RubyEncoding encoding = libString.getEncoding(string);
             var tstring = libString.getTString(string);
-            int stringCharacterLength = codePointLengthNode.execute(tstring, encoding.tencoding);
-            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCharacterLength);
+            int stringCodePointLength = codePointLengthNode.execute(tstring, encoding.tencoding);
+            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCodePointLength);
             int characterLength = length;
 
             if (negativeIndexProfile.profile(normalizedIndex < 0)) {
                 return nil;
             }
 
-            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCharacterLength)) {
-                characterLength = stringCharacterLength - normalizedIndex;
+            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCodePointLength)) {
+                characterLength = stringCodePointLength - normalizedIndex;
             }
 
             return makeRope(encoding, rope, normalizedIndex, characterLength);
@@ -5175,16 +5175,16 @@ public abstract class StringNodes {
             final Rope rope = libString.getRope(string);
             final RubyEncoding encoding = libString.getEncoding(string);
             var tstring = libString.getTString(string);
-            int stringCharacterLength = codePointLengthNode.execute(tstring, encoding.tencoding);
-            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCharacterLength);
+            int stringCodePointLength = codePointLengthNode.execute(tstring, encoding.tencoding);
+            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCodePointLength);
             int characterLength = length;
 
             if (negativeIndexProfile.profile(normalizedIndex < 0)) {
                 return nil;
             }
 
-            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCharacterLength)) {
-                characterLength = stringCharacterLength - normalizedIndex;
+            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCodePointLength)) {
+                characterLength = stringCodePointLength - normalizedIndex;
             }
 
             final SearchResult searchResult = searchForSingleByteOptimizableDescendant(
