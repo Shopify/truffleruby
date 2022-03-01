@@ -621,7 +621,7 @@ public abstract class StringNodes {
         @Child private NormalizeIndexNode normalizeIndexNode;
         @Child private StringSubstringPrimitiveNode substringNode;
         @Child private ToLongNode toLongNode;
-        @Child private CharacterLengthNode charLengthNode;
+        @Child private TruffleString.CodePointLengthNode codePointLengthNode;
         private final BranchProfile outOfBounds = BranchProfile.create();
 
         // endregion
@@ -630,7 +630,7 @@ public abstract class StringNodes {
         @Specialization
         protected Object getIndex(Object string, int index, NotProvided length,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) {
-            return index == charLength(strings.getRope(string)) // Check for the only difference from str[index, 1]
+            return index == codePointLength(strings.getTString(string), strings.getEncoding(string)) // Check for the only difference from str[index, 1]
                     ? outOfBoundsNil()
                     : substring(string, index, 1);
         }
@@ -752,7 +752,7 @@ public abstract class StringNodes {
         }
 
         private Object sliceRange(Object string, RubyStringLibrary libString, int begin, int end, boolean excludesEnd) {
-            final int stringLength = charLength(libString.getRope(string));
+            final int stringLength = codePointLength(libString.getTString(string), libString.getEncoding(string));
             begin = normalizeIndex(begin, stringLength);
             if (begin < 0 || begin > stringLength) {
                 return outOfBoundsNil();
@@ -836,13 +836,13 @@ public abstract class StringNodes {
             return toLongNode.execute(value);
         }
 
-        private int charLength(Rope rope) {
-            if (charLengthNode == null) {
+        private int codePointLength(AbstractTruffleString string, RubyEncoding encoding) {
+            if (codePointLengthNode == null) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
-                charLengthNode = insert(CharacterLengthNode.create());
+                codePointLengthNode = insert(TruffleString.CodePointLengthNode.create());
             }
 
-            return charLengthNode.execute(rope);
+            return codePointLengthNode.execute(string, encoding.tencoding);
         }
 
         private int normalizeIndex(int index, int length) {
