@@ -1108,7 +1108,7 @@ public class CExtNodes {
         protected NativeRope toNative(RubyString string,
                 @Cached ConditionProfile convertProfile,
                 @Cached RopeNodes.BytesNode bytesNode,
-                @Cached RopeNodes.CharacterLengthNode characterLengthNode,
+                @Cached TruffleString.CodePointLengthNode codePointLengthNode,
                 @Cached RopeNodes.CodeRangeNode codeRangeNode) {
             final Rope currentRope = string.rope;
 
@@ -1121,7 +1121,7 @@ public class CExtNodes {
                         getContext(),
                         bytesNode.execute(currentRope),
                         currentRope.getEncoding(),
-                        characterLengthNode.execute(currentRope),
+                        codePointLengthNode.execute(string.tstring, string.encoding.tencoding),
                         codeRangeNode.execute(currentRope));
                 string.setRope(nativeRope);
             }
