@@ -1731,7 +1731,8 @@ public abstract class StringNodes {
     @ImportStatic(StringGuards.class)
     public abstract static class LstripBangNode extends CoreMethodArrayArgumentsNode {
 
-        @Child TruffleString.CodePointAtByteIndexNode codePointAtByteIndexNode = TruffleString.CodePointAtByteIndexNode.create();
+        @Child TruffleString.CodePointAtByteIndexNode codePointAtByteIndexNode = TruffleString.CodePointAtByteIndexNode
+                .create();
         @Child TruffleString.SubstringByteIndexNode substringNode = TruffleString.SubstringByteIndexNode.create();
 
         @Specialization(guards = "isEmpty(string.rope)")
@@ -2767,8 +2768,7 @@ public abstract class StringNodes {
     @ImportStatic(StringGuards.class)
     public abstract static class ReverseBangNode extends CoreMethodArrayArgumentsNode {
 
-        @Child
-        TruffleString.CodePointLengthNode codePointLengthNode = TruffleString.CodePointLengthNode.create();
+        @Child TruffleString.CodePointLengthNode codePointLengthNode = TruffleString.CodePointLengthNode.create();
         @Child private TruffleString.FromByteArrayNode fromByteArrayNode = TruffleString.FromByteArrayNode.create();
 
         @Specialization(guards = "reverseIsEqualToSelf(string, codePointLengthNode)")
@@ -2833,7 +2833,7 @@ public abstract class StringNodes {
         }
 
         public static boolean reverseIsEqualToSelf(RubyString string,
-                                                   TruffleString.CodePointLengthNode codePointLengthNode) {
+                TruffleString.CodePointLengthNode codePointLengthNode) {
             return codePointLengthNode.execute(string.getTString(), string.encoding.tencoding) <= 1;
         }
     }
