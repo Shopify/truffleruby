@@ -11,6 +11,7 @@
 package org.truffleruby.core.string;
 
 import org.jcodings.Config;
+import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.rope.CodeRange;
 import org.truffleruby.core.rope.Rope;
 import org.truffleruby.core.rope.RopeNodes;
@@ -19,16 +20,16 @@ public class StringGuards {
 
     private static final int CASE_FULL_UNICODE = 0;
 
-    public static boolean isSingleByteOptimizable(Rope rope,
+    public static boolean isSingleByteOptimizable(Rope rope, RubyEncoding encoding,
             RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
-        return singleByteOptimizableNode.execute(rope);
+        return singleByteOptimizableNode.execute(rope, encoding);
     }
 
     public static boolean isSingleByteOptimizable(RubyString string,
             RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
 
         final Rope rope = string.rope;
-        return singleByteOptimizableNode.execute(rope);
+        return singleByteOptimizableNode.execute(rope, string.encoding);
     }
 
     public static boolean is7Bit(Rope rope, RopeNodes.CodeRangeNode codeRangeNode) {
@@ -63,11 +64,12 @@ public class StringGuards {
         return rope.byteLength() == 1;
     }
 
-    public static boolean canMemcmp(Rope sourceRope, Rope patternRope,
+    public static boolean canMemcmp(Rope sourceRope, Rope patternRope, RubyEncoding sourceEncoding,
+            RubyEncoding patternEncoding,
             RopeNodes.SingleByteOptimizableNode singleByteNode) {
 
-        return (singleByteNode.execute(sourceRope) || sourceRope.getEncoding().isUTF8()) &&
-                (singleByteNode.execute(patternRope) || patternRope.getEncoding().isUTF8());
+        return (singleByteNode.execute(sourceRope, sourceEncoding) || sourceRope.getEncoding().isUTF8()) &&
+                (singleByteNode.execute(patternRope, patternEncoding) || patternRope.getEncoding().isUTF8());
     }
 
     /** The case mapping is simple (ASCII-only or full Unicode): no complex option like Turkic, case-folding, etc. */
