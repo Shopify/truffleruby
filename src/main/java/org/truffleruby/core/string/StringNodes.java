@@ -3710,7 +3710,7 @@ public abstract class StringNodes {
         @Specialization(
                 guards = {
                         "!indexOutOfBounds(strings.getRope(string), byteIndex)",
-                        "isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)" })
+                        "isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected Object stringChrAtSingleByte(Object string, int byteIndex,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached StringByteSubstringPrimitiveNode stringByteSubstringNode,
@@ -3721,7 +3721,7 @@ public abstract class StringNodes {
         @Specialization(
                 guards = {
                         "!indexOutOfBounds(strings.getRope(string), byteIndex)",
-                        "!isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)" })
+                        "!isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected Object stringChrAt(Object string, int byteIndex,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached GetActualEncodingNode getActualEncodingNode,
@@ -3918,7 +3918,7 @@ public abstract class StringNodes {
                 guards = {
                         "offset >= 0",
                         "!offsetTooLarge(strings.getRope(string), offset)",
-                        "isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)" })
+                        "isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected Object stringFindCharacterSingleByte(Object string, int offset,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached SingleByteOptimizableNode singleByteOptimizableNode,
@@ -3931,7 +3931,7 @@ public abstract class StringNodes {
                 guards = {
                         "offset >= 0",
                         "!offsetTooLarge(strings.getRope(string), offset)",
-                        "!isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)" })
+                        "!isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected Object stringFindCharacter(Object string, int offset,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached GetBytesObjectNode getBytesObject,
@@ -4326,7 +4326,7 @@ public abstract class StringNodes {
 
         @Specialization(
                 guards = {
-                        "isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)" })
+                        "isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected int singleByte(Object string, int byteIndex,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) {
             return byteIndex;
@@ -4698,7 +4698,7 @@ public abstract class StringNodes {
 
         @Specialization(guards = {
                 "index > 0",
-                "isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)" })
+                "isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected int singleByteOptimizable(Object string, int index,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached SingleByteOptimizableNode singleByteOptimizableNode) {
@@ -4707,7 +4707,7 @@ public abstract class StringNodes {
 
         @Specialization(guards = {
                 "index > 0",
-                "!isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)",
+                "!isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)",
                 "isFixedWidthEncoding(strings.getRope(string))" })
         protected int fixedWidthEncoding(Object string, int index,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
@@ -4729,7 +4729,7 @@ public abstract class StringNodes {
 
         @Specialization(guards = {
                 "index > 0",
-                "!isSingleByteOptimizable(strings.getRope(string), strings.getEncoding(string), singleByteOptimizableNode)",
+                "!isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)",
                 "!isFixedWidthEncoding(strings.getRope(string))" })
         @TruffleBoundary
         protected Object other(Object string, int index,
