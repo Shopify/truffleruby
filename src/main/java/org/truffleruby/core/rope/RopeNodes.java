@@ -556,13 +556,14 @@ public abstract class RopeNodes {
 
         public abstract int executeGetCodePoint(RubyEncoding encoding, Rope rope, int index);
 
-        @Specialization(guards = "singleByteOptimizableNode.execute(rope)")
+        @Specialization(guards = "singleByteOptimizableNode.execute(rope, encoding)")
         protected int getCodePointSingleByte(RubyEncoding encoding, Rope rope, int index,
                 @Cached @Exclusive GetByteNode getByteNode) {
             return getByteNode.executeGetByte(rope, index);
         }
 
-        @Specialization(guards = { "!singleByteOptimizableNode.execute(rope)", "rope.getEncoding().isUTF8()" })
+        @Specialization(
+                guards = { "!singleByteOptimizableNode.execute(rope, encoding)", "rope.getEncoding().isUTF8()" })
         protected int getCodePointUTF8(RubyEncoding encoding, Rope rope, int index,
                 @Cached @Exclusive GetByteNode getByteNode,
                 @Cached ConditionProfile singleByteCharProfile,
@@ -577,7 +578,8 @@ public abstract class RopeNodes {
             return getCodePointMultiByte(encoding, rope, index, getBytesObject, codeRangeNode, errorProfile);
         }
 
-        @Specialization(guards = { "!singleByteOptimizableNode.execute(rope)", "!rope.getEncoding().isUTF8()" })
+        @Specialization(
+                guards = { "!singleByteOptimizableNode.execute(rope, encoding)", "!rope.getEncoding().isUTF8()" })
         protected int getCodePointMultiByte(RubyEncoding encoding, Rope rope, int index,
                 @Cached @Shared("getBytesObject") GetBytesObjectNode getBytesObject,
                 @Cached @Shared("codeRangeNode") CodeRangeNode codeRangeNode,
@@ -792,23 +794,6 @@ public abstract class RopeNodes {
     }
 
     @GenerateUncached
-    public abstract static class AsciiOnlyNode extends RubyBaseNode {
-
-        public static AsciiOnlyNode create() {
-            return RopeNodesFactory.AsciiOnlyNodeGen.create();
-        }
-
-        public abstract boolean execute(Rope rope);
-
-        @Specialization
-        protected boolean asciiOnly(Rope rope,
-                @Cached CodeRangeNode codeRangeNode) {
-            return codeRangeNode.execute(rope) == CR_7BIT;
-        }
-
-    }
-
-    @GenerateUncached
     public abstract static class CodeRangeNode extends RubyBaseNode {
 
         public static CodeRangeNode create() {
@@ -897,21 +882,30 @@ public abstract class RopeNodes {
             return RopeNodesFactory.SingleByteOptimizableNodeGen.create();
         }
 
-        public abstract boolean execute(Rope rope);
+        public abstract boolean execute(Object object, RubyEncoding encoding);
 
         @Specialization
-        protected boolean isSingleByteOptimizable(Rope rope,
-                @Cached AsciiOnlyNode asciiOnlyNode,
+        protected boolean isSingleByteOptimizable(Rope rope, RubyEncoding encoding,
                 @Cached ConditionProfile asciiOnlyProfile) {
-            final boolean asciiOnly = asciiOnlyNode.execute(rope);
 
-            if (asciiOnlyProfile.profile(asciiOnly)) {
+            if (asciiOnlyProfile.profile(rope.isAsciiOnly())) {
                 return true;
             } else {
                 return rope.getEncoding().isSingleByte();
             }
         }
 
+        /* @Specialization protected boolean isSingleByteOptimizable(AbstractTruffleString tString,
+         * 
+         * @Cached AsciiOnlyNode asciiOnlyNode,
+         * 
+         * @Cached ConditionProfile asciiOnlyProfile,
+         * 
+         * @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) { var encoding =
+         * strings.getEncoding(tString); final boolean asciiOnly = asciiOnlyNode.execute(tString, encoding);
+         * 
+         * if (asciiOnlyProfile.profile(asciiOnly)) { return true; } else { return encoding.jcoding.isSingleByte(); }
+         * } */
     }
 
     @ImportStatic(CodeRange.class)

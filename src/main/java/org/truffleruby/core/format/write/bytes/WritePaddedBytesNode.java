@@ -40,7 +40,6 @@ public abstract class WritePaddedBytesNode extends FormatNode {
             @Cached RopeNodes.BytesNode bytesNode,
             @Cached RopeNodes.CharacterLengthNode charLengthNode,
             @Cached StringNodes.ByteIndexFromCharIndexNode indexNode) {
-        final byte[] bytes = bytesNode.execute(rope);
         if (leftJustifiedProfile.profile(leftJustified)) {
             writeStringBytes(frame, precision, rope, bytesNode, indexNode);
             writePaddingBytes(frame, padding, precision, rope, charLengthNode);

@@ -453,7 +453,8 @@ public abstract class MatchDataNodes {
             }
 
             final Rope matchDataSourceRope = strings.getRope(matchData.source);
-            if (multiByteCharacterProfile.profile(!singleByteOptimizableNode.execute(matchDataSourceRope))) {
+            if (multiByteCharacterProfile.profile(
+                    !singleByteOptimizableNode.execute(matchDataSourceRope, strings.getEncoding(matchData.source)))) {
                 return getCharOffsets(matchData, matchDataSourceRope).beg[index];
             }
 
@@ -536,7 +537,8 @@ public abstract class MatchDataNodes {
             }
 
             final Rope matchDataSourceRope = strings.getRope(matchData.source);
-            if (multiByteCharacterProfile.profile(!singleByteOptimizableNode.execute(matchDataSourceRope))) {
+            if (multiByteCharacterProfile.profile(
+                    !singleByteOptimizableNode.execute(matchDataSourceRope, strings.getEncoding(matchData.source)))) {
                 return getCharOffsets(matchData, matchDataSourceRope).end[index];
             }
 
