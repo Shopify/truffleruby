@@ -10,6 +10,7 @@
 
 package org.truffleruby.core.string;
 
+import com.oracle.truffle.api.strings.AbstractTruffleString;
 import org.jcodings.Config;
 import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.rope.CodeRange;
@@ -25,11 +26,14 @@ public class StringGuards {
         return singleByteOptimizableNode.execute(rope, encoding);
     }
 
+    public static boolean isSingleByteOptimizable(AbstractTruffleString tString, RubyEncoding encoding,
+            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
+        return singleByteOptimizableNode.execute(tString, encoding);
+    }
+
     public static boolean isSingleByteOptimizable(RubyString string,
             RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
-
-        final Rope rope = string.rope;
-        return singleByteOptimizableNode.execute(rope, string.encoding);
+        return singleByteOptimizableNode.execute(string.tstring, string.encoding);
     }
 
     public static boolean is7Bit(Rope rope, RopeNodes.CodeRangeNode codeRangeNode) {
