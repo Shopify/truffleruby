@@ -16,8 +16,8 @@ import com.oracle.truffle.api.TruffleSafepoint;
 import com.oracle.truffle.api.interop.InteropException;
 import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.profiles.LoopConditionProfile;
+import com.oracle.truffle.api.strings.AbstractTruffleString;
 import com.oracle.truffle.api.strings.TruffleString;
-import org.jcodings.Encoding;
 import org.joni.NameEntry;
 import org.joni.Regex;
 import org.joni.Region;
@@ -32,6 +32,7 @@ import org.truffleruby.core.array.ArrayOperations;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.array.RubyArray;
 import org.truffleruby.core.cast.ToIntNode;
+import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.range.RubyIntRange;
 import org.truffleruby.core.regexp.MatchDataNodesFactory.ValuesNodeFactory;
@@ -100,10 +101,11 @@ public abstract class MatchDataNodes {
     }
 
     @TruffleBoundary
-    private static Region getCharOffsetsManyRegs(RubyMatchData matchData, Rope source, Encoding encoding) {
+    private static Region getCharOffsetsManyRegs(RubyMatchData matchData, AbstractTruffleString source,
+            RubyEncoding encoding) {
         // Taken from org.jruby.RubyMatchData
 
-        assert !encoding.isSingleByte() : "Should be checked by callers";
+        assert !encoding.jcoding.isSingleByte() : "Should be checked by callers";
 
         final Region regs = matchData.region;
         int numRegs = regs.numRegs;
@@ -145,37 +147,38 @@ public abstract class MatchDataNodes {
     }
 
     @TruffleBoundary
-    private static void updatePairs(Rope source, Encoding encoding, Pair[] pairs) {
+    private static void updatePairs(AbstractTruffleString source, RubyEncoding encoding, Pair[] pairs) {
         // Taken from org.jruby.RubyMatchData
         Arrays.sort(pairs);
 
-        byte[] bytes = source.getBytes();
-        int p = 0;
+        var byteArray = source.getInternalByteArrayUncached(encoding.tencoding);
+        byte[] bytes = byteArray.getArray();
+        int p = byteArray.getOffset();
         int s = p;
         int c = 0;
 
         for (Pair pair : pairs) {
             int q = s + pair.bytePos;
-            c += StringSupport.strLength(encoding, bytes, p, q);
+            c += StringSupport.strLength(encoding.jcoding, bytes, p, q);
             pair.charPos = c;
             p = q;
         }
     }
 
     @TruffleBoundary
-    private static Region createCharOffsets(RubyMatchData matchData, Rope source) {
-        final Encoding enc = source.getEncoding();
-        final Region charOffsets = getCharOffsetsManyRegs(matchData, source, enc);
+    private static Region createCharOffsets(RubyMatchData matchData, AbstractTruffleString source,
+            RubyEncoding encoding) {
+        final Region charOffsets = getCharOffsetsManyRegs(matchData, source, encoding);
         matchData.charOffsets = charOffsets;
         return charOffsets;
     }
 
-    private static Region getCharOffsets(RubyMatchData matchData, Rope sourceRope) {
+    private static Region getCharOffsets(RubyMatchData matchData, AbstractTruffleString source, RubyEncoding encoding) {
         final Region charOffsets = matchData.charOffsets;
         if (charOffsets != null) {
             return charOffsets;
         } else {
-            return createCharOffsets(matchData, sourceRope);
+            return createCharOffsets(matchData, source, encoding);
         }
     }
 
@@ -452,10 +455,12 @@ public abstract class MatchDataNodes {
                 return nil;
             }
 
-            final Rope matchDataSourceRope = strings.getRope(matchData.source);
+            var matchDataSource = strings.getTString(matchData.source);
+            var encoding = strings.getEncoding(matchData.source);
+
             if (multiByteCharacterProfile.profile(
-                    !singleByteOptimizableNode.execute(matchDataSourceRope, strings.getEncoding(matchData.source)))) {
-                return getCharOffsets(matchData, matchDataSourceRope).beg[index];
+                    !singleByteOptimizableNode.execute(matchDataSource, encoding))) {
+                return getCharOffsets(matchData, matchDataSource, encoding).beg[index];
             }
 
             return begin;
@@ -536,10 +541,12 @@ public abstract class MatchDataNodes {
                 return nil;
             }
 
-            final Rope matchDataSourceRope = strings.getRope(matchData.source);
+            var matchDataSource = strings.getTString(matchData.source);
+            var encoding = strings.getEncoding(matchData.source);
+
             if (multiByteCharacterProfile.profile(
-                    !singleByteOptimizableNode.execute(matchDataSourceRope, strings.getEncoding(matchData.source)))) {
-                return getCharOffsets(matchData, matchDataSourceRope).end[index];
+                    !singleByteOptimizableNode.execute(matchDataSource, encoding))) {
+                return getCharOffsets(matchData, matchDataSource, encoding).end[index];
             }
 
             return end;
