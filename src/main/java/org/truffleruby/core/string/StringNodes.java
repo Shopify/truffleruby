@@ -954,8 +954,7 @@ public abstract class StringNodes {
 
         @Child private NegotiateCompatibleEncodingNode negotiateCompatibleEncodingNode = NegotiateCompatibleEncodingNode
                 .create();
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode
-                .create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
         private final ConditionProfile incompatibleEncodingProfile = ConditionProfile.create();
 
         @CreateCast("other")
@@ -964,7 +963,7 @@ public abstract class StringNodes {
         }
 
         @Specialization(
-                guards = "bothSingleByteOptimizable(strings.getRope(string), stringsOther.getRope(other), strings.getEncoding(string), stringsOther.getEncoding(other))")
+                guards = "bothSingleByteOptimizable(strings.getTString(string), stringsOther.getTString(other), strings.getEncoding(string), stringsOther.getEncoding(other))")
         protected Object caseCmpSingleByte(Object string, Object other,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary stringsOther) {
@@ -979,7 +978,7 @@ public abstract class StringNodes {
         }
 
         @Specialization(
-                guards = "!bothSingleByteOptimizable(strings.getRope(string), stringsOther.getRope(other), strings.getEncoding(string), stringsOther.getEncoding(other))")
+                guards = "!bothSingleByteOptimizable(strings.getTString(string), stringsOther.getTString(other), strings.getEncoding(string), stringsOther.getEncoding(other))")
         protected Object caseCmp(Object string, Object other,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary stringsOther) {
@@ -995,10 +994,11 @@ public abstract class StringNodes {
                     .multiByteCasecmp(encoding.jcoding, strings.getRope(string), stringsOther.getRope(other));
         }
 
-        protected boolean bothSingleByteOptimizable(Rope stringRope, Rope otherRope, RubyEncoding stringEncoding,
+        protected boolean bothSingleByteOptimizable(AbstractTruffleString string, AbstractTruffleString other,
+                RubyEncoding stringEncoding,
                 RubyEncoding otherEncoding) {
-            return singleByteOptimizableNode.execute(stringRope, stringEncoding) &&
-                    singleByteOptimizableNode.execute(otherRope, otherEncoding);
+            return singleByteOptimizableNode.execute(string, stringEncoding) &&
+                    singleByteOptimizableNode.execute(other, otherEncoding);
         }
     }
 
