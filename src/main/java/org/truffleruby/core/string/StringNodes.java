@@ -1767,7 +1767,7 @@ public abstract class StringNodes {
                 guards = { "!isEmpty(string.rope)", "isSingleByteOptimizable(string, singleByteOptimizableNode)" })
         protected Object lstripBangSingleByte(RubyString string,
                 @Cached BytesNode bytesNode,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode,
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode,
                 @Cached ConditionProfile noopProfile) {
             // Taken from org.jruby.RubyString#lstrip_bang19 and org.jruby.RubyString#singleByteLStrip.
 
@@ -1799,7 +1799,7 @@ public abstract class StringNodes {
         @Specialization(
                 guards = { "!isEmpty(string.rope)", "!isSingleByteOptimizable(string, singleByteOptimizableNode)" })
         protected Object lstripBang(RubyString string,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode,
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode,
                 @Cached GetActualEncodingNode getActualEncodingNode,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings) {
             // Taken from org.jruby.RubyString#lstrip_bang19 and org.jruby.RubyString#multiByteLStrip.
@@ -2809,7 +2809,7 @@ public abstract class StringNodes {
                         "isSingleByteOptimizable(string, singleByteOptimizableNode)" })
         protected RubyString reverseSingleByteOptimizable(RubyString string,
                 @Cached BytesNode bytesNode,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode) {
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode) {
             final Rope rope = string.rope;
             final byte[] originalBytes = bytesNode.execute(rope);
             final int len = originalBytes.length;
@@ -2830,7 +2830,7 @@ public abstract class StringNodes {
         protected RubyString reverse(RubyString string,
                 @Cached BytesNode bytesNode,
                 @Cached CodeRangeNode codeRangeNode,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode) {
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode) {
             // Taken from org.jruby.RubyString#reverse!
 
             final Rope rope = string.rope;
@@ -3713,7 +3713,7 @@ public abstract class StringNodes {
         protected Object stringChrAtSingleByte(Object string, int byteIndex,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
                 @Cached StringByteSubstringPrimitiveNode stringByteSubstringNode,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode) {
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode) {
             return stringByteSubstringNode.executeStringByteSubstring(string, byteIndex, 1);
         }
 
@@ -3727,7 +3727,7 @@ public abstract class StringNodes {
                 @Cached TruffleString.GetInternalByteArrayNode getInternalByteArrayNode,
                 @Cached CalculateCharacterLengthNode calculateCharacterLengthNode,
                 @Cached CodeRangeNode codeRangeNode,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode,
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode,
                 @Cached TruffleString.SubstringByteIndexNode substringByteIndexNode,
                 @Cached TruffleString.ForceEncodingNode forceEncodingNode) {
             final Rope rope = strings.getRope(string);
@@ -3920,7 +3920,7 @@ public abstract class StringNodes {
                         "isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected Object stringFindCharacterSingleByte(Object string, int offset,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode,
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode,
                 @Cached TruffleString.SubstringByteIndexNode substringNode) {
             // Taken from Rubinius's String::find_character.
             return createSubString(substringNode, strings, string, offset, 1);
@@ -3936,7 +3936,7 @@ public abstract class StringNodes {
                 @Cached GetBytesObjectNode getBytesObject,
                 @Cached CalculateCharacterLengthNode calculateCharacterLengthNode,
                 @Cached CodeRangeNode codeRangeNode,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode,
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode,
                 @Cached TruffleString.SubstringByteIndexNode substringNode) {
             // Taken from Rubinius's String::find_character.
 
@@ -4699,7 +4699,7 @@ public abstract class StringNodes {
                 "isSingleByteOptimizable(strings.getTString(string), strings.getEncoding(string), singleByteOptimizableNode)" })
         protected int singleByteOptimizable(Object string, int index,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode) {
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode) {
             return index - 1;
         }
 
@@ -4709,7 +4709,7 @@ public abstract class StringNodes {
                 "isFixedWidthEncoding(strings.getRope(string))" })
         protected int fixedWidthEncoding(Object string, int index,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode,
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode,
                 @Cached ConditionProfile firstCharacterProfile) {
             final Encoding encoding = strings.getRope(string).getEncoding();
 
@@ -4732,7 +4732,7 @@ public abstract class StringNodes {
         @TruffleBoundary
         protected Object other(Object string, int index,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary strings,
-                @Cached SingleByteOptimizableNode singleByteOptimizableNode) {
+                @Cached NewSingleByteOptimizableNode singleByteOptimizableNode) {
             final Rope rope = strings.getRope(string);
             final int p = 0;
             final int end = p + rope.byteLength();

@@ -21,21 +21,6 @@ public class StringGuards {
 
     private static final int CASE_FULL_UNICODE = 0;
 
-    public static boolean isSingleByteOptimizable(Rope rope, RubyEncoding encoding,
-            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
-        return singleByteOptimizableNode.execute(rope, encoding);
-    }
-
-    public static boolean isSingleByteOptimizable(AbstractTruffleString tString, RubyEncoding encoding,
-            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
-        return singleByteOptimizableNode.execute(tString, encoding);
-    }
-
-    public static boolean isSingleByteOptimizable(RubyString string,
-            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
-        return singleByteOptimizableNode.execute(string.tstring, string.encoding);
-    }
-
     public static boolean isSingleByteOptimizable(RubyString string,
             StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
         return singleByteOptimizableNode.execute(string.tstring, string.encoding);
