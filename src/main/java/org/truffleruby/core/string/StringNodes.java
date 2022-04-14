@@ -1347,7 +1347,7 @@ public abstract class StringNodes {
     @ImportStatic({ StringGuards.class, Config.class })
     public abstract static class StringDowncaseBangPrimitiveNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(guards = { "isSingleByteCaseMapping(string, caseMappingOptions, singleByteOptimizableNode)" })
         protected Object downcaseSingleByte(RubyString string, int caseMappingOptions,
@@ -2141,7 +2141,7 @@ public abstract class StringNodes {
     @ImportStatic({ StringGuards.class, Config.class })
     public abstract static class StringSwapcaseBangPrimitiveNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(guards = { "isSingleByteCaseMapping(string, caseMappingOptions, singleByteOptimizableNode)" })
         protected Object swapcaseSingleByte(RubyString string, int caseMappingOptions,
@@ -3191,8 +3191,7 @@ public abstract class StringNodes {
     @ImportStatic({ StringGuards.class, Config.class })
     public abstract static class StringUpcaseBangPrimitiveNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode
-                .create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(guards = { "isSingleByteCaseMapping(string, caseMappingOptions, singleByteOptimizableNode)" })
         protected Object upcaseSingleByte(RubyString string, int caseMappingOptions,
@@ -3279,7 +3278,7 @@ public abstract class StringNodes {
         @Child private BytesNode bytesNode = BytesNode.create();
         @Child private CodeRangeNode codeRangeNode = CodeRangeNode.create();
         @Child private TruffleString.FromByteArrayNode fromByteArrayNode = TruffleString.FromByteArrayNode.create();
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(guards = "isSingleByteCaseMapping(string, caseMappingOptions, singleByteOptimizableNode)")
         protected Object capitalizeSingleByte(RubyString string, int caseMappingOptions,

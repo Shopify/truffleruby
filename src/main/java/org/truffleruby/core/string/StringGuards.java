@@ -94,21 +94,21 @@ public class StringGuards {
     /** The string can be optimized to single-byte representation and is a simple case mapping (ASCII-only or full
      * Unicode). */
     public static boolean isSingleByteCaseMapping(RubyString string, int caseMappingOptions,
-            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
+            StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
         return isSingleByteOptimizable(string, singleByteOptimizableNode) && isAsciiCompatMapping(caseMappingOptions);
     }
 
     /** The string's encoding is ASCII-compatible, the mapping is ASCII-only and {@link #isSingleByteCaseMapping} is not
      * applicable. */
     public static boolean isSimpleAsciiCaseMapping(RubyString string, int caseMappingOptions,
-            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
+            StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
         return !isSingleByteOptimizable(string, singleByteOptimizableNode) &&
                 caseMappingOptions == Config.CASE_ASCII_ONLY && isAsciiCompatible(string);
     }
 
     /** Both {@link #isSingleByteCaseMapping} and {@link #isSimpleAsciiCaseMapping} are not applicable. */
     public static boolean isComplexCaseMapping(RubyString string, int caseMappingOptions,
-            RopeNodes.SingleByteOptimizableNode singleByteOptimizableNode) {
+            StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
         return !isSingleByteCaseMapping(string, caseMappingOptions, singleByteOptimizableNode) &&
                 !isSimpleAsciiCaseMapping(string, caseMappingOptions, singleByteOptimizableNode);
     }
