@@ -4081,7 +4081,7 @@ public abstract class StringNodes {
 
         @Child private CheckEncodingNode checkEncodingNode;
         @Child CodeRangeNode codeRangeNode = CodeRangeNode.create();
-        @Child SingleByteOptimizableNode singleByteNode = SingleByteOptimizableNode.create();
+        @Child NewSingleByteOptimizableNode singleByteNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(
                 guards = "isEmpty(stringsPattern.getRope(pattern))")
@@ -4095,7 +4095,7 @@ public abstract class StringNodes {
                 guards = {
                         "isSingleByteString(libPattern.getRope(pattern))",
                         "!isBrokenCodeRange(libPattern.getRope(pattern), codeRangeNode)",
-                        "canMemcmp(libString.getRope(string), libPattern.getRope(pattern), " +
+                        "canMemcmp(libString.getTString(string), libPattern.getTString(pattern), " +
                                 "libString.getEncoding(string), libPattern.getEncoding(pattern), singleByteNode)" })
         protected Object stringIndexSingleBytePattern(Object string, Object pattern, int byteOffset,
                 @Cached BytesNode bytesNode,
@@ -4126,8 +4126,8 @@ public abstract class StringNodes {
                         "!isEmpty(libPattern.getRope(pattern))",
                         "!isSingleByteString(libPattern.getRope(pattern))",
                         "!isBrokenCodeRange(libPattern.getRope(pattern), codeRangeNode)",
-                        "canMemcmp(libString.getRope(string), libPattern.getRope(pattern), " +
-                                "libString.getEncoding(string), libPattern.getEncoding(pattern),singleByteNode)" })
+                        "canMemcmp(libString.getTString(string), libPattern.getTString(pattern), " +
+                                "libString.getEncoding(string), libPattern.getEncoding(pattern), singleByteNode)" })
         protected Object stringIndexMultiBytePattern(Object string, Object pattern, int byteOffset,
                 @Cached BytesNode bytesNode,
                 @Cached BranchProfile matchFoundProfile,
@@ -4177,7 +4177,7 @@ public abstract class StringNodes {
         @Specialization(
                 guards = {
                         "!isBrokenCodeRange(libPattern.getRope(pattern), codeRangeNode)",
-                        "!canMemcmp(libString.getRope(string), libPattern.getRope(pattern), " +
+                        "!canMemcmp(libString.getTString(string), libPattern.getTString(pattern), " +
                                 "libString.getEncoding(string), libPattern.getEncoding(pattern), singleByteNode)" })
         protected Object stringIndexGeneric(Object string, Object pattern, int byteOffset,
                 @Cached ByteIndexFromCharIndexNode byteIndexFromCharIndexNode,
@@ -4754,7 +4754,7 @@ public abstract class StringNodes {
 
         @Child private CheckEncodingNode checkEncodingNode;
         @Child CodeRangeNode codeRangeNode = CodeRangeNode.create();
-        @Child SingleByteOptimizableNode singleByteNode = SingleByteOptimizableNode.create();
+        @Child NewSingleByteOptimizableNode singleByteNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(guards = { "isEmpty(stringsPattern.getRope(pattern))" })
         protected Object stringRindexEmptyPattern(Object string, Object pattern, int byteOffset,
@@ -4766,11 +4766,12 @@ public abstract class StringNodes {
         @Specialization(guards = {
                 "isSingleByteString(patternRope)",
                 "!isBrokenCodeRange(patternRope, codeRangeNode)",
-                "canMemcmp(libString.getRope(string), patternRope, " +
+                "canMemcmp(libString.getTString(string), patternTString, " +
                         "libString.getEncoding(string), libPattern.getEncoding(pattern), singleByteNode)" })
         protected Object stringRindexSingleBytePattern(Object string, Object pattern, int byteOffset,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libPattern,
                 @Bind("libPattern.getRope(pattern)") Rope patternRope,
+                @Bind("libPattern.getTString(pattern)") AbstractTruffleString patternTString,
                 @Cached BytesNode bytesNode,
                 @Cached BranchProfile startTooLargeProfile,
                 @Cached BranchProfile matchFoundProfile,
@@ -4813,11 +4814,12 @@ public abstract class StringNodes {
                 "!isEmpty(patternRope)",
                 "!isSingleByteString(patternRope)",
                 "!isBrokenCodeRange(patternRope, codeRangeNode)",
-                "canMemcmp(libString.getRope(string), patternRope, " +
+                "canMemcmp(libString.getTString(string), patternTString, " +
                         "libString.getEncoding(string), libPattern.getEncoding(pattern), singleByteNode)" })
         protected Object stringRindexMultiBytePattern(Object string, Object pattern, int byteOffset,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libPattern,
                 @Bind("libPattern.getRope(pattern)") Rope patternRope,
+                @Bind("libPattern.getTString(pattern)") AbstractTruffleString patternTString,
                 @Cached BytesNode bytesNode,
                 @Cached BranchProfile startOutOfBoundsProfile,
                 @Cached BranchProfile startTooCloseToEndProfile,
@@ -4874,11 +4876,12 @@ public abstract class StringNodes {
 
         @Specialization(guards = {
                 "!isBrokenCodeRange(patternRope, codeRangeNode)",
-                "!canMemcmp(libString.getRope(string), patternRope, " +
+                "!canMemcmp(libString.getTString(string), patternTString, " +
                         "libString.getEncoding(string), libPattern.getEncoding(pattern), singleByteNode)" })
         protected Object stringRindex(Object string, Object pattern, int byteOffset,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libPattern,
                 @Bind("libPattern.getRope(pattern)") Rope patternRope,
+                @Bind("libPattern.getTString(pattern)") AbstractTruffleString patternTString,
                 @Cached BytesNode stringBytes,
                 @Cached BytesNode patternBytes,
                 @Cached GetByteNode patternGetByteNode,

@@ -78,13 +78,15 @@ public class StringGuards {
         return rope.byteLength() == 1;
     }
 
-    public static boolean canMemcmp(Rope sourceRope, Rope patternRope, RubyEncoding sourceEncoding,
+    public static boolean canMemcmp(AbstractTruffleString sourceRope, AbstractTruffleString patternRope,
+            RubyEncoding sourceEncoding,
             RubyEncoding patternEncoding,
-            RopeNodes.SingleByteOptimizableNode singleByteNode) {
+            StringNodes.NewSingleByteOptimizableNode singleByteNode) {
 
-        return (singleByteNode.execute(sourceRope, sourceEncoding) || sourceRope.getEncoding().isUTF8()) &&
-                (singleByteNode.execute(patternRope, patternEncoding) || patternRope.getEncoding().isUTF8());
+        return (singleByteNode.execute(sourceRope, sourceEncoding) || sourceEncoding.jcoding.isUTF8()) &&
+                (singleByteNode.execute(patternRope, patternEncoding) || patternEncoding.jcoding.isUTF8());
     }
+
 
     /** The case mapping is simple (ASCII-only or full Unicode): no complex option like Turkic, case-folding, etc. */
     public static boolean isAsciiCompatMapping(int caseMappingOptions) {
