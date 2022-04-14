@@ -36,6 +36,16 @@ public class StringGuards {
         return singleByteOptimizableNode.execute(string.tstring, string.encoding);
     }
 
+    public static boolean isSingleByteOptimizable(RubyString string,
+            StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
+        return singleByteOptimizableNode.execute(string.tstring, string.encoding);
+    }
+
+    public static boolean isSingleByteOptimizable(AbstractTruffleString tString, RubyEncoding encoding,
+            StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
+        return singleByteOptimizableNode.execute(tString, encoding);
+    }
+
     public static boolean is7Bit(Rope rope, RopeNodes.CodeRangeNode codeRangeNode) {
         return codeRangeNode.execute(rope) == CodeRange.CR_7BIT;
     }

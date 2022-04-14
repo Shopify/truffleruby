@@ -163,6 +163,7 @@ import org.truffleruby.core.string.StringNodesFactory.DeleteBangRopesNodeFactory
 import org.truffleruby.core.string.StringNodesFactory.InvertAsciiCaseBytesNodeGen;
 import org.truffleruby.core.string.StringNodesFactory.InvertAsciiCaseNodeGen;
 import org.truffleruby.core.string.StringNodesFactory.MakeStringNodeGen;
+import org.truffleruby.core.string.StringNodesFactory.NewSingleByteOptimizableNodeGen;
 import org.truffleruby.core.string.StringNodesFactory.NormalizeIndexNodeGen;
 import org.truffleruby.core.string.StringNodesFactory.StringAppendNodeGen;
 import org.truffleruby.core.string.StringNodesFactory.StringAppendPrimitiveNodeFactory;
@@ -1346,8 +1347,7 @@ public abstract class StringNodes {
     @ImportStatic({ StringGuards.class, Config.class })
     public abstract static class StringDowncaseBangPrimitiveNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode
-                .create();
+        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
 
         @Specialization(guards = { "isSingleByteCaseMapping(string, caseMappingOptions, singleByteOptimizableNode)" })
         protected Object downcaseSingleByte(RubyString string, int caseMappingOptions,
@@ -1886,7 +1886,7 @@ public abstract class StringNodes {
     public abstract static class RstripBangNode extends CoreMethodArrayArgumentsNode {
 
         @Child GetCodePointNode getCodePointNode = GetCodePointNode.create();
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
         @Child TruffleString.SubstringByteIndexNode substringNode = TruffleString.SubstringByteIndexNode.create();
 
         @Specialization(guards = "isEmpty(string.rope)")
@@ -5377,6 +5377,25 @@ public abstract class StringNodes {
             return makeStringNode.executeMake(array, rubyEncoding, CR_UNKNOWN);
         }
 
+    }
+
+    public abstract static class NewSingleByteOptimizableNode extends RubyBaseNode {
+        public static NewSingleByteOptimizableNode create() {
+            return NewSingleByteOptimizableNodeGen.create();
+        }
+
+        public abstract boolean execute(AbstractTruffleString string, RubyEncoding encoding);
+
+        @Specialization
+        protected boolean isSingleByteOptimizable(AbstractTruffleString string, RubyEncoding encoding,
+                @Cached ConditionProfile asciiOnlyProfile,
+                @Cached TruffleString.GetByteCodeRangeNode getByteCodeRangeNode) {
+            if (asciiOnlyProfile.profile(TStringGuards.is7Bit(string, encoding, getByteCodeRangeNode))) {
+                return true;
+            } else {
+                return encoding.jcoding.isSingleByte();
+            }
+        }
     }
 
     public abstract static class StringAppendNode extends RubyBaseNode {

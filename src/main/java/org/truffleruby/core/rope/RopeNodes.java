@@ -26,14 +26,13 @@ import com.oracle.truffle.api.dsl.Cached.Exclusive;
 import com.oracle.truffle.api.dsl.Cached.Shared;
 import com.oracle.truffle.api.profiles.LoopConditionProfile;
 import com.oracle.truffle.api.strings.AbstractTruffleString;
-import com.oracle.truffle.api.strings.TruffleString;
 import org.jcodings.Encoding;
 import org.jcodings.specific.ASCIIEncoding;
 import org.jcodings.specific.USASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.truffleruby.core.encoding.RubyEncoding;
-import org.truffleruby.core.encoding.TStringGuards;
 import org.truffleruby.core.string.StringAttributes;
+import org.truffleruby.core.string.StringNodes;
 import org.truffleruby.core.string.StringSupport;
 import org.truffleruby.language.NotProvided;
 import org.truffleruby.language.RubyBaseNode;
@@ -900,13 +899,8 @@ public abstract class RopeNodes {
 
         @Specialization
         protected boolean isSingleByteOptimizable(AbstractTruffleString tString, RubyEncoding encoding,
-                @Cached ConditionProfile asciiOnlyProfile,
-                @Cached TruffleString.GetByteCodeRangeNode getByteCodeRangeNode) {
-            if (asciiOnlyProfile.profile(TStringGuards.is7Bit(tString, encoding, getByteCodeRangeNode))) {
-                return true;
-            } else {
-                return encoding.jcoding.isSingleByte();
-            }
+                @Cached StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
+            return singleByteOptimizableNode.execute(tString, encoding);
         }
     }
 
