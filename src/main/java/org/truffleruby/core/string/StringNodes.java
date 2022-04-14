@@ -4314,8 +4314,7 @@ public abstract class StringNodes {
     @ImportStatic(StringGuards.class)
     public abstract static class StringByteCharacterIndexNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode
-                .create();
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         public abstract int executeStringByteCharacterIndex(Object string, int byteIndex);
 
@@ -4333,7 +4332,7 @@ public abstract class StringNodes {
 
         @Specialization(
                 guards = {
-                        "!isSingleByteOptimizable(libString.getRope(string), libString.getEncoding(string), singleByteOptimizableNode)",
+                        "!isSingleByteOptimizable(libString.getTString(string), libString.getEncoding(string), singleByteOptimizableNode)",
                         "isFixedWidthEncoding(libString.getRope(string))" })
         protected int fixedWidth(Object string, int byteIndex,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString) {
@@ -4342,7 +4341,7 @@ public abstract class StringNodes {
 
         @Specialization(
                 guards = {
-                        "!isSingleByteOptimizable(libString.getRope(string), libString.getEncoding(string), singleByteOptimizableNode)",
+                        "!isSingleByteOptimizable(libString.getTString(string), libString.getEncoding(string), singleByteOptimizableNode)",
                         "!isFixedWidthEncoding(libString.getRope(string))",
                         "isValidUtf8(libString.getRope(string), codeRangeNode)" })
         protected int validUtf8(Object string, int byteIndex,
@@ -4356,7 +4355,7 @@ public abstract class StringNodes {
         @TruffleBoundary
         @Specialization(
                 guards = {
-                        "!isSingleByteOptimizable(libString.getRope(string), libString.getEncoding(string), singleByteOptimizableNode)",
+                        "!isSingleByteOptimizable(libString.getTString(string), libString.getEncoding(string), singleByteOptimizableNode)",
                         "!isFixedWidthEncoding(libString.getRope(string))",
                         "!isValidUtf8(libString.getRope(string), codeRangeNode)" })
         protected int notValidUtf8(Object string, int byteIndex,
