@@ -106,7 +106,6 @@ import org.truffleruby.core.array.RubyArray;
 import org.truffleruby.core.cast.BooleanCastNode;
 import org.truffleruby.core.cast.ToIntNode;
 import org.truffleruby.core.cast.ToLongNode;
-import org.truffleruby.core.cast.ToRopeNodeGen;
 import org.truffleruby.core.cast.ToStrNode;
 import org.truffleruby.core.cast.ToStrNodeGen;
 import org.truffleruby.core.encoding.EncodingNodes;
@@ -4384,100 +4383,61 @@ public abstract class StringNodes {
 
     /** Search pattern in string starting after offset characters, and return a character index or nil */
     @Primitive(name = "string_character_index", lowerFixnum = 2)
-    @NodeChild(value = "string", type = RubyBaseNodeWithExecute.class)
-    @NodeChild(value = "pattern", type = RubyBaseNodeWithExecute.class)
-    @NodeChild(value = "offset", type = RubyNode.class)
-    public abstract static class StringCharacterIndexNode extends PrimitiveNode {
+    public abstract static class StringCharacterIndexNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
+        @Child protected RubyStringLibrary libString = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child protected RubyStringLibrary libPattern = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
-        @CreateCast("string")
-        protected RubyBaseNodeWithExecute coerceStringToRope(RubyBaseNodeWithExecute string) {
-            return ToRopeNodeGen.create(string);
-        }
+        @Specialization(guards = "singleByteOptimizableNode.execute(string, stringEncoding)")
+        protected Object singleByteOptimizable(Object rubyString, Object rubyPattern, int codePointOffset,
+                @Bind("libString.getTString(rubyString)") AbstractTruffleString string,
+                @Bind("libString.getEncoding(rubyString)") RubyEncoding stringEncoding,
+                @Bind("libPattern.getTString(rubyPattern)") AbstractTruffleString pattern,
+                @Bind("libPattern.getEncoding(rubyPattern)") RubyEncoding patternEncoding,
+                @Cached TruffleString.ByteIndexOfStringNode byteIndexOfStringNode,
+                @Cached ConditionProfile foundProfile) {
 
-        @CreateCast("pattern")
-        protected RubyBaseNodeWithExecute coercePatternToRope(RubyBaseNodeWithExecute pattern) {
-            return ToRopeNodeGen.create(pattern);
-        }
+            assert codePointOffset >= 0;
 
-        @Specialization(
-                guards = "singleByteOptimizableNode.execute(stringRope, " +
-                        "getContext().getEncodingManager().getRubyEncoding(stringRope.encoding.getIndex()))")
-        protected Object singleByteOptimizable(Rope stringRope, Rope patternRope, int offset,
-                @Cached @Shared("stringBytesNode") BytesNode stringBytesNode,
-                @Cached @Shared("patternBytesNode") BytesNode patternBytesNode,
-                @Cached LoopConditionProfile loopProfile) {
-            assert offset >= 0;
-            assert offset + patternRope.byteLength() <= stringRope
-                    .byteLength() : "already checked in the caller, String#index";
+            // When single-byte optimizable, the byte length and the codepoint length are the same.
+            int stringByteLength = string.byteLength(stringEncoding.tencoding);
 
-            int p = offset;
-            final int e = stringRope.byteLength();
-            final int pe = patternRope.byteLength();
-            final int l = e - pe + 1;
+            assert codePointOffset +
+                    pattern.byteLength(
+                            patternEncoding.tencoding) <= stringByteLength : "already checked in the caller, String#index";
 
-            final byte[] stringBytes = stringBytesNode.execute(stringRope);
-            final byte[] patternBytes = patternBytesNode.execute(patternRope);
+            int found = byteIndexOfStringNode.execute(string, pattern, codePointOffset,
+                    stringByteLength,
+                    stringEncoding.tencoding);
 
-            try {
-                for (; loopProfile.inject(p < l); p++) {
-                    if (ArrayUtils.regionEquals(stringBytes, p, patternBytes, 0, pe)) {
-                        return p;
-                    }
-                    TruffleSafepoint.poll(this);
-                }
-            } finally {
-                profileAndReportLoopCount(loopProfile, p - offset);
+            if (foundProfile.profile(found >= 0)) {
+                return found;
             }
 
             return nil;
         }
 
-        @TruffleBoundary
-        @Specialization(
-                guards = "!singleByteOptimizableNode.execute(stringRope, " +
-                        "getContext().getEncodingManager().getRubyEncoding(stringRope.encoding.getIndex()))")
-        protected Object multiByte(Rope stringRope, Rope patternRope, int offset,
-                @Cached CalculateCharacterLengthNode calculateCharacterLengthNode,
-                @Cached @Shared("stringBytesNode") BytesNode stringBytesNode,
-                @Cached @Shared("patternBytesNode") BytesNode patternBytesNode) {
+        @Specialization(guards = "!singleByteOptimizableNode.execute(string, stringEncoding)")
+        protected Object multiByte(Object rubyString, Object rubyPattern, int codePointOffset,
+                @Bind("libString.getTString(rubyString)") AbstractTruffleString string,
+                @Bind("libString.getEncoding(rubyString)") RubyEncoding stringEncoding,
+                @Bind("libPattern.getTString(rubyPattern)") AbstractTruffleString pattern,
+                @Bind("libPattern.getEncoding(rubyPattern)") RubyEncoding patternEncoding,
+                @Cached TruffleString.CodePointLengthNode codePointLengthNode,
+                @Cached TruffleString.IndexOfStringNode indexOfStringNode,
+                @Cached ConditionProfile foundProfile) {
 
-            assert offset >= 0;
-            assert offset + patternRope.byteLength() <= stringRope
-                    .byteLength() : "already checked in the caller, String#index";
+            assert codePointOffset >= 0;
+            assert codePointOffset + pattern.codePointLengthUncached(patternEncoding.tencoding) <= string
+                    .codePointLengthUncached(stringEncoding.tencoding) : "already checked in the caller, String#index";
 
-            int p = 0;
-            final int e = stringRope.byteLength();
-            final int pe = patternRope.byteLength();
-            final int l = e - pe + 1;
+            int stringCodePointLength = codePointLengthNode.execute(string, stringEncoding.tencoding);
+            int found = indexOfStringNode.execute(string, pattern, codePointOffset, stringCodePointLength,
+                    stringEncoding.tencoding);
 
-            final byte[] stringBytes = stringBytesNode.execute(stringRope);
-            final byte[] patternBytes = patternBytesNode.execute(patternRope);
-
-            final Encoding enc = stringRope.getEncoding();
-            final CodeRange cr = stringRope.getCodeRange();
-            int c = 0;
-            int index = 0;
-
-            while (p < e && index < offset) {
-                c = calculateCharacterLengthNode.characterLength(enc, cr, Bytes.fromRange(stringBytes, p, e));
-                if (StringSupport.MBCLEN_CHARFOUND_P(c)) {
-                    p += c;
-                    index++;
-                } else {
-                    return nil;
-                }
-            }
-
-            for (; p < l; p += c, ++index) {
-                c = calculateCharacterLengthNode.characterLength(enc, cr, Bytes.fromRange(stringBytes, p, e));
-                if (!StringSupport.MBCLEN_CHARFOUND_P(c)) {
-                    return nil;
-                }
-                if (ArrayUtils.regionEquals(stringBytes, p, patternBytes, 0, pe)) {
-                    return index;
-                }
+            if (foundProfile.profile(found >= 0)) {
+                return found;
             }
 
             return nil;
