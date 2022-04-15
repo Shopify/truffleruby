@@ -4486,99 +4486,37 @@ public abstract class StringNodes {
 
     /** Search pattern in string starting after offset bytes, and return a byte index or nil */
     @Primitive(name = "string_byte_index", lowerFixnum = 2)
-    @NodeChild(value = "string", type = RubyBaseNodeWithExecute.class)
-    @NodeChild(value = "pattern", type = RubyBaseNodeWithExecute.class)
-    @NodeChild(value = "offset", type = RubyNode.class)
-    public abstract static class StringByteIndexNode extends PrimitiveNode {
+    public abstract static class StringByteIndexNode extends PrimitiveArrayArgumentsNode {
 
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
+        @Child protected RubyStringLibrary libString = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child protected RubyStringLibrary libPattern = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
-        @CreateCast("string")
-        protected RubyBaseNodeWithExecute coerceStringToRope(RubyBaseNodeWithExecute string) {
-            return ToRopeNodeGen.create(string);
-        }
+        @Specialization
+        protected Object stringByteIndex(Object rubyString, Object rubyPattern, int byteOffset,
+                @Cached TruffleString.ByteIndexOfStringNode byteIndexOfStringNode,
+                @Cached ConditionProfile indexOutOfBoundsProfile,
+                @Cached ConditionProfile foundProfile) {
+            assert byteOffset >= 0;
 
-        @CreateCast("pattern")
-        protected RubyBaseNodeWithExecute coercePatternToRope(RubyBaseNodeWithExecute pattern) {
-            return ToRopeNodeGen.create(pattern);
-        }
+            var string = libString.getTString(rubyString);
+            var stringEncoding = libString.getEncoding(rubyString).tencoding;
+            int stringByteLength = string.byteLength(stringEncoding);
 
-        @Specialization(guards = "!patternFits(stringRope, patternRope, offset)")
-        protected Object patternTooLarge(Rope stringRope, Rope patternRope, int offset) {
-            assert offset >= 0;
-            return nil;
-        }
+            var pattern = libPattern.getTString(rubyPattern);
+            var patternEncoding = libPattern.getEncoding(rubyPattern).tencoding;
+            int patternByteLength = pattern.byteLength(patternEncoding);
 
-        @Specialization(
-                guards = {
-                        "singleByteOptimizableNode.execute(stringRope, getContext().getEncodingManager().getRubyEncoding(stringRope.encoding.getIndex()))",
-                        "patternFits(stringRope, patternRope, offset)" })
-        protected Object singleByteOptimizable(Rope stringRope, Rope patternRope, int offset,
-                @Cached @Shared("stringBytesNode") BytesNode stringBytesNode,
-                @Cached @Shared("patternBytesNode") BytesNode patternBytesNode,
-                @Cached LoopConditionProfile loopProfile) {
+            if (indexOutOfBoundsProfile.profile(byteOffset + patternByteLength > stringByteLength)) {
+                return nil;
+            }
 
-            assert offset >= 0;
-            int p = offset;
-            final int e = stringRope.byteLength();
-            final int pe = patternRope.byteLength();
-            final int l = e - pe + 1;
-
-            final byte[] stringBytes = stringBytesNode.execute(stringRope);
-            final byte[] patternBytes = patternBytesNode.execute(patternRope);
-
-            try {
-                for (; loopProfile.inject(p < l); p++) {
-                    if (ArrayUtils.regionEquals(stringBytes, p, patternBytes, 0, pe)) {
-                        return p;
-                    }
-                    TruffleSafepoint.poll(this);
-                }
-            } finally {
-                profileAndReportLoopCount(loopProfile, p - offset);
+            int found = byteIndexOfStringNode.execute(string, pattern, byteOffset, stringByteLength, stringEncoding);
+            if (foundProfile.profile(found >= 0)) {
+                return found;
             }
 
             return nil;
-        }
-
-        @TruffleBoundary
-        @Specialization(
-                guards = {
-                        "!singleByteOptimizableNode.execute(stringRope, getContext().getEncodingManager().getRubyEncoding(stringRope.encoding.getIndex()))",
-                        "patternFits(stringRope, patternRope, offset)" })
-        protected Object multiByte(Rope stringRope, Rope patternRope, int offset,
-                @Cached CalculateCharacterLengthNode calculateCharacterLengthNode,
-                @Cached @Shared("stringBytesNode") BytesNode stringBytesNode,
-                @Cached @Shared("patternBytesNode") BytesNode patternBytesNode) {
-
-            assert offset >= 0;
-            int p = offset;
-            final int e = stringRope.byteLength();
-            final int pe = patternRope.byteLength();
-            final int l = e - pe + 1;
-
-            final byte[] stringBytes = stringBytesNode.execute(stringRope);
-            final byte[] patternBytes = patternBytesNode.execute(patternRope);
-
-            final Encoding enc = stringRope.getEncoding();
-            final CodeRange cr = stringRope.getCodeRange();
-            int c;
-
-            for (; p < l; p += c) {
-                c = calculateCharacterLengthNode.characterLength(enc, cr, Bytes.fromRange(stringBytes, p, e));
-                if (!StringSupport.MBCLEN_CHARFOUND_P(c)) {
-                    return nil;
-                }
-                if (ArrayUtils.regionEquals(stringBytes, p, patternBytes, 0, pe)) {
-                    return p;
-                }
-            }
-
-            return nil;
-        }
-
-        protected boolean patternFits(Rope stringRope, Rope patternRope, int offset) {
-            return offset + patternRope.byteLength() <= stringRope.byteLength();
         }
     }
 
