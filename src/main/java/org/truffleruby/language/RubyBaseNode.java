@@ -198,6 +198,14 @@ public abstract class RubyBaseNode extends Node {
         return createString(substring, encoding);
     }
 
+    protected final RubyString createSubString(TruffleString.SubstringNode substringNode,
+            AbstractTruffleString tstring, RubyEncoding encoding, int codePointOffset, int codePointLength) {
+        final TruffleString substring = substringNode.execute(tstring, codePointOffset, codePointLength,
+                encoding.tencoding,
+                true);
+        return createString(substring, encoding);
+    }
+
     protected final CoreLibrary coreLibrary() {
         return getContext().getCoreLibrary();
     }

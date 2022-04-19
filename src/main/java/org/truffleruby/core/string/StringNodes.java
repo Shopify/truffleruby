@@ -134,7 +134,6 @@ import org.truffleruby.core.range.RubyObjectRange;
 import org.truffleruby.core.regexp.RubyRegexp;
 import org.truffleruby.core.rope.Bytes;
 import org.truffleruby.core.rope.CodeRange;
-import org.truffleruby.core.rope.LeafRope;
 import org.truffleruby.core.rope.NativeRope;
 import org.truffleruby.core.rope.Rope;
 import org.truffleruby.core.rope.RopeBuilder;
@@ -151,7 +150,6 @@ import org.truffleruby.core.rope.RopeNodes.GetCodePointNode;
 import org.truffleruby.core.rope.RopeNodes.SingleByteOptimizableNode;
 import org.truffleruby.core.rope.RopeOperations;
 import org.truffleruby.core.rope.RopeWithEncoding;
-import org.truffleruby.core.rope.SubstringRope;
 import org.truffleruby.core.rope.TStringWithEncoding;
 import org.truffleruby.core.string.StringNodesFactory.ByteIndexFromCharIndexNodeGen;
 import org.truffleruby.core.string.StringNodesFactory.ByteSizeNodeFactory;
@@ -5060,204 +5058,37 @@ public abstract class StringNodes {
     @ImportStatic(StringGuards.class)
     public abstract static class StringSubstringPrimitiveNode extends CoreMethodArrayArgumentsNode {
 
-        @Child NormalizeIndexNode normalizeIndexNode = NormalizeIndexNode.create();
-        @Child TruffleString.CodePointLengthNode codePointLengthNode = TruffleString.CodePointLengthNode.create();
-        @Child SingleByteOptimizableNode singleByteOptimizableNode = SingleByteOptimizableNode.create();
-        @Child TruffleString.SubstringByteIndexNode substringNode;
+        public abstract Object execute(Object string, int codePointOffset, int codePointLength);
 
-        public abstract Object execute(Object string, int index, int length);
-
-        @Specialization(guards = {
-                "!indexTriviallyOutOfBounds(tstring, encoding, index, length)",
-                "noCharacterSearch(libString.getRope(string), encoding, singleByteOptimizableNode)" })
-        protected Object stringSubstringSingleByte(Object string, int index, int length,
+        @Specialization
+        protected Object stringSubstringGeneric(Object string, int codePointOffset, int codePointLength,
                 @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
                 @Bind("libString.getTString(string)") AbstractTruffleString tstring,
                 @Bind("libString.getEncoding(string)") RubyEncoding encoding,
-                @Cached @Shared("negativeIndexProfile") ConditionProfile negativeIndexProfile,
-                @Cached @Shared("tooLargeTotalProfile") ConditionProfile tooLargeTotalProfile) {
-            final Rope rope = libString.getRope(string);
+                @Cached NormalizeIndexNode normalizeIndexNode,
+                @Cached TruffleString.CodePointLengthNode codePointLengthNode,
+                @Cached TruffleString.SubstringNode substringNode,
+                @Cached ConditionProfile negativeIndexProfile,
+                @Cached ConditionProfile tooLargeTotalProfile,
+                @Cached ConditionProfile triviallyOutOfBoundsProfile) {
             int stringCodePointLength = codePointLengthNode.execute(tstring, encoding.tencoding);
-            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCodePointLength);
-            int characterLength = length;
-
-            if (negativeIndexProfile.profile(normalizedIndex < 0)) {
+            if (triviallyOutOfBoundsProfile.profile(codePointLength < 0 || codePointOffset > stringCodePointLength)) {
                 return nil;
             }
 
-            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCodePointLength)) {
-                characterLength = stringCodePointLength - normalizedIndex;
-            }
-
-            return makeRope(encoding, rope, normalizedIndex, characterLength);
-        }
-
-        @Specialization(guards = {
-                "!indexTriviallyOutOfBounds(tstring, encoding, index, length)",
-                "!noCharacterSearch(libString.getRope(string), encoding, singleByteOptimizableNode)" })
-        protected Object stringSubstringGeneric(Object string, int index, int length,
-                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
-                @Bind("libString.getTString(string)") AbstractTruffleString tstring,
-                @Bind("libString.getEncoding(string)") RubyEncoding encoding,
-                @Cached @Shared("negativeIndexProfile") ConditionProfile negativeIndexProfile,
-                @Cached @Shared("tooLargeTotalProfile") ConditionProfile tooLargeTotalProfile,
-                @Cached @Exclusive ConditionProfile foundSingleByteOptimizableDescendentProfile,
-                @Cached BranchProfile singleByteOptimizableBaseProfile,
-                @Cached BranchProfile leafBaseProfile,
-                @Cached BranchProfile slowSearchProfile,
-                @Cached ByteIndexFromCharIndexNode byteIndexFromCharIndexNode) {
-            final Rope rope = libString.getRope(string);
-            int stringCodePointLength = codePointLengthNode.execute(tstring, encoding.tencoding);
-            int normalizedIndex = normalizeIndexNode.executeNormalize(index, stringCodePointLength);
-            int characterLength = length;
-
-            if (negativeIndexProfile.profile(normalizedIndex < 0)) {
+            int normalizedCodePointOffset = normalizeIndexNode.executeNormalize(codePointOffset, stringCodePointLength);
+            if (negativeIndexProfile.profile(normalizedCodePointOffset < 0)) {
                 return nil;
             }
 
-            if (tooLargeTotalProfile.profile(normalizedIndex + characterLength > stringCodePointLength)) {
-                characterLength = stringCodePointLength - normalizedIndex;
+            int normalizedCodePointLength = codePointLength;
+            if (tooLargeTotalProfile
+                    .profile(normalizedCodePointOffset + normalizedCodePointLength > stringCodePointLength)) {
+                normalizedCodePointLength = stringCodePointLength - normalizedCodePointOffset;
             }
 
-            final SearchResult searchResult = searchForSingleByteOptimizableDescendant(
-                    rope,
-                    normalizedIndex,
-                    characterLength,
-                    singleByteOptimizableBaseProfile,
-                    leafBaseProfile,
-                    slowSearchProfile);
-
-            if (foundSingleByteOptimizableDescendentProfile
-                    .profile(singleByteOptimizableNode.execute(searchResult.rope, encoding))) {
-                return makeRope(
-                        encoding,
-                        searchResult.rope,
-                        searchResult.index,
-                        characterLength);
-            }
-
-            return stringSubstringMultiByte(
-                    string,
-                    libString,
-                    normalizedIndex,
-                    characterLength,
-                    byteIndexFromCharIndexNode);
-        }
-
-        @Specialization(guards = {
-                "indexTriviallyOutOfBounds(tstring, encoding, index, length)" })
-        protected Object stringSubstringNegativeLength(Object string, int index, int length,
-                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
-                @Bind("libString.getTString(string)") AbstractTruffleString tstring,
-                @Bind("libString.getEncoding(string)") RubyEncoding encoding) {
-            return nil;
-        }
-
-        private SearchResult searchForSingleByteOptimizableDescendant(Rope base, int index, int characterLength,
-                BranchProfile singleByteOptimizableBaseProfile,
-                BranchProfile leafBaseProfile,
-                BranchProfile slowSearchProfile) {
-
-            if (singleByteOptimizableNode.execute(base,
-                    getContext().getEncodingManager().getRubyEncoding(base.encoding.getIndex()))) {
-                singleByteOptimizableBaseProfile.enter();
-                return new SearchResult(index, base);
-            }
-
-            if (base instanceof LeafRope) {
-                leafBaseProfile.enter();
-                return new SearchResult(index, base);
-            }
-
-            slowSearchProfile.enter();
-            return searchForSingleByteOptimizableDescendantSlow(base, index, characterLength);
-        }
-
-        @TruffleBoundary
-        private SearchResult searchForSingleByteOptimizableDescendantSlow(Rope base, int index, int characterLength) {
-            // If we've found something that's single-byte optimizable, we can halt the search. Taking a substring of
-            // a single byte optimizable rope is a fast operation.
-            if (base.isSingleByteOptimizable()) {
-                return new SearchResult(index, base);
-            }
-
-            if (base instanceof LeafRope) {
-                return new SearchResult(index, base);
-            } else if (base instanceof SubstringRope) {
-                final SubstringRope substringRope = (SubstringRope) base;
-                if (substringRope.isSingleByteOptimizable()) {
-                    // the substring byte offset is also a character offset
-                    return searchForSingleByteOptimizableDescendantSlow(
-                            substringRope.getChild(),
-                            index + substringRope.getByteOffset(),
-                            characterLength);
-                } else {
-                    return new SearchResult(index, substringRope);
-                }
-            } else if (base instanceof NativeRope) {
-                final NativeRope nativeRope = (NativeRope) base;
-                return new SearchResult(index, nativeRope.toLeafRope());
-            } else {
-                throw new UnsupportedOperationException(
-                        "Don't know how to traverse rope type: " + base.getClass().getName());
-            }
-        }
-
-        private Object stringSubstringMultiByte(Object string, RubyStringLibrary libString, int beg, int characterLen,
-                ByteIndexFromCharIndexNode byteIndexFromCharIndexNode) {
-            // Taken from org.jruby.RubyString#substr19 & org.jruby.RubyString#multibyteSubstr19.
-
-            final Rope rope = libString.getRope(string);
-            var tstring = libString.getTString(string);
-            final RubyEncoding encoding = libString.getEncoding(string);
-            final int length = tstring.byteLength(encoding.tencoding);
-
-            int p;
-            final int end = length;
-            int substringByteLength;
-
-            p = byteIndexFromCharIndexNode.execute(rope, 0, beg);
-            if (p == end) {
-                substringByteLength = 0;
-            } else {
-                int pp = byteIndexFromCharIndexNode.execute(rope, p, characterLen);
-                substringByteLength = StringSupport.offset(p, end, pp);
-            }
-
-            return makeRope(encoding, tstring, p, substringByteLength);
-        }
-
-        private RubyString makeRope(RubyEncoding encoding, Rope rope, int beg, int byteLength) {
-            return makeRope(encoding, TStringUtils.fromRope(rope, encoding), beg, byteLength);
-        }
-
-        private RubyString makeRope(RubyEncoding encoding, AbstractTruffleString tstring, int beg, int byteLength) {
-            if (substringNode == null) {
-                CompilerDirectives.transferToInterpreterAndInvalidate();
-                substringNode = insert(TruffleString.SubstringByteIndexNode.create());
-            }
-
-            return createSubString(substringNode, tstring, encoding, beg, byteLength);
-        }
-
-        protected boolean indexTriviallyOutOfBounds(AbstractTruffleString tstring, RubyEncoding encoding,
-                int index, int length) {
-            return (length < 0) || (index > codePointLengthNode.execute(tstring, encoding.tencoding));
-        }
-
-        protected static boolean noCharacterSearch(Rope rope, RubyEncoding encoding,
-                SingleByteOptimizableNode singleByteOptimizableNode) {
-            return rope.isEmpty() || singleByteOptimizableNode.execute(rope, encoding);
-        }
-
-        private static final class SearchResult {
-            public final int index;
-            public final Rope rope;
-
-            public SearchResult(final int index, final Rope rope) {
-                this.index = index;
-                this.rope = rope;
-            }
+            return createSubString(substringNode, tstring, encoding, normalizedCodePointOffset,
+                    normalizedCodePointLength);
         }
 
     }
