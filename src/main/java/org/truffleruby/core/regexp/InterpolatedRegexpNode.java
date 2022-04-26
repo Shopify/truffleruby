@@ -34,7 +34,7 @@ public class InterpolatedRegexpNode extends RubyContextSourceNode {
     public InterpolatedRegexpNode(ToSNode[] children, RegexpOptions options) {
         this.children = children;
         builderNode = RegexpBuilderNode.create(options);
-        rubyStringLibrary = RubyStringLibrary.getFactory().createDispatched(2);
+        rubyStringLibrary = RubyStringLibrary.createDispatched();
     }
 
     @Override

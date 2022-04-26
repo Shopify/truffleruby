@@ -112,7 +112,7 @@ public class TruffleRegexpNodes {
     public abstract static class PrepareRegexpEncodingNode extends PrimitiveArrayArgumentsNode {
 
         @Child RopeNodes.CodeRangeNode codeRangeNode = RopeNodes.CodeRangeNode.create();
-        @Child RubyStringLibrary stringLibrary = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child RubyStringLibrary stringLibrary = RubyStringLibrary.createDispatched();
         @Child WarnNode warnNode;
 
         public static PrepareRegexpEncodingNode create() {
@@ -285,7 +285,7 @@ public class TruffleRegexpNodes {
         @Child ToSNode toSNode = ToSNode.create();
         @Child DispatchNode copyNode = DispatchNode.create();
         @Child private SameOrEqualNode sameOrEqualNode = SameOrEqualNode.create();
-        @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.createDispatched();
 
         @Specialization(
                 guards = "argsMatch(frame, cachedArgs, args)",

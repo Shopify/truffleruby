@@ -1051,7 +1051,7 @@ public abstract class StringNodes {
 
         @Child private ToStrNode toStr = ToStrNode.create();
         @Child private CountRopesNode countRopesNode = CountRopesNode.create();
-        @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.createDispatched();
 
         @Specialization(
                 guards = "args.length == size",
@@ -1220,7 +1220,7 @@ public abstract class StringNodes {
 
         @Child private ToStrNode toStr = ToStrNode.create();
         @Child private DeleteBangRopesNode deleteBangRopesNode = DeleteBangRopesNode.create();
-        @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child private RubyStringLibrary rubyStringLibrary = RubyStringLibrary.createDispatched();
 
         public static DeleteBangNode create() {
             return DeleteBangNodeFactory.create(null);
@@ -4185,8 +4185,8 @@ public abstract class StringNodes {
     @Primitive(name = "string_character_index", lowerFixnum = 2)
     public abstract static class StringCharacterIndexNode extends PrimitiveArrayArgumentsNode {
 
-        @Child protected RubyStringLibrary libString = RubyStringLibrary.getFactory().createDispatched(2);
-        @Child protected RubyStringLibrary libPattern = RubyStringLibrary.getFactory().createDispatched(2);
+        @Child protected RubyStringLibrary libString = RubyStringLibrary.createDispatched();
+        @Child protected RubyStringLibrary libPattern = RubyStringLibrary.createDispatched();
         @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         @Specialization(guards = "singleByteOptimizableNode.execute(string, stringEncoding)")
@@ -4248,11 +4248,10 @@ public abstract class StringNodes {
     @Primitive(name = "string_byte_index", lowerFixnum = 2)
     public abstract static class StringByteIndexNode extends PrimitiveArrayArgumentsNode {
 
-        @Child protected RubyStringLibrary libString = RubyStringLibrary.getFactory().createDispatched(2);
-        @Child protected RubyStringLibrary libPattern = RubyStringLibrary.getFactory().createDispatched(2);
-
         @Specialization
         protected Object stringByteIndex(Object rubyString, Object rubyPattern, int byteOffset,
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libString,
+                @CachedLibrary(limit = "LIBSTRING_CACHE") RubyStringLibrary libPattern,
                 @Cached TruffleString.ByteIndexOfStringNode byteIndexOfStringNode,
                 @Cached ConditionProfile indexOutOfBoundsProfile,
                 @Cached ConditionProfile foundProfile) {
