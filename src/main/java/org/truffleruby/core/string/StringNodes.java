@@ -4250,7 +4250,6 @@ public abstract class StringNodes {
 
         @Child protected RubyStringLibrary libString = RubyStringLibrary.getFactory().createDispatched(2);
         @Child protected RubyStringLibrary libPattern = RubyStringLibrary.getFactory().createDispatched(2);
-        @Child NewSingleByteOptimizableNode singleByteOptimizableNode = NewSingleByteOptimizableNode.create();
 
         @Specialization
         protected Object stringByteIndex(Object rubyString, Object rubyPattern, int byteOffset,
