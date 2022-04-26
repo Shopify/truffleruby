@@ -25,14 +25,12 @@ import com.oracle.truffle.api.TruffleSafepoint;
 import com.oracle.truffle.api.dsl.Cached.Exclusive;
 import com.oracle.truffle.api.dsl.Cached.Shared;
 import com.oracle.truffle.api.profiles.LoopConditionProfile;
-import com.oracle.truffle.api.strings.AbstractTruffleString;
 import org.jcodings.Encoding;
 import org.jcodings.specific.ASCIIEncoding;
 import org.jcodings.specific.USASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.string.StringAttributes;
-import org.truffleruby.core.string.StringNodes;
 import org.truffleruby.core.string.StringSupport;
 import org.truffleruby.language.NotProvided;
 import org.truffleruby.language.RubyBaseNode;
@@ -884,7 +882,7 @@ public abstract class RopeNodes {
             return RopeNodesFactory.SingleByteOptimizableNodeGen.create();
         }
 
-        public abstract boolean execute(Object object, RubyEncoding encoding);
+        public abstract boolean execute(Rope rope, RubyEncoding encoding);
 
         @Specialization
         protected boolean isSingleByteOptimizable(Rope rope, RubyEncoding encoding,
@@ -895,12 +893,6 @@ public abstract class RopeNodes {
             } else {
                 return rope.getEncoding().isSingleByte();
             }
-        }
-
-        @Specialization
-        protected boolean isSingleByteOptimizable(AbstractTruffleString tString, RubyEncoding encoding,
-                @Cached StringNodes.NewSingleByteOptimizableNode singleByteOptimizableNode) {
-            return singleByteOptimizableNode.execute(tString, encoding);
         }
     }
 
