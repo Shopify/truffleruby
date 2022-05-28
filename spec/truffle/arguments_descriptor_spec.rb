@@ -38,9 +38,9 @@ describe "Arguments descriptors" do
       splat = [1, 2]
       descriptor(*splat).should == []
 
-      descriptor(a: 1).should == [:keywords, :a]
+      descriptor(a: 1).should == [:a, :no_splat]
       kw = { b: 2 }
-      descriptor(**kw).should == [:keywords]
+      descriptor(**kw).should == [:only_splat]
       empty_kw = {}
       descriptor(**empty_kw).should == []
     end
@@ -64,7 +64,7 @@ describe "Arguments descriptors" do
   it "contain keyword arguments" do
     info = only_kws(a: 1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -75,12 +75,12 @@ describe "Arguments descriptors" do
 
     info = only_kws_and_opt(a: 1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
 
     info = only_kws_and_opt(a: 1)
     info.values.should == [1, 101]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
   end
 
@@ -91,7 +91,7 @@ describe "Arguments descriptors" do
 
     info = posn_kws(1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :b] if truffleruby?
+    info.descriptor.should == [:b, :no_splat] if truffleruby?
     info.arguments.should == [1, {b: 2}] if truffleruby?
   end
 
@@ -102,19 +102,19 @@ describe "Arguments descriptors" do
   it "contain optional keyword arguments with positional arguments" do
     info = posn_kws_defaults(1, b: 2, c: 3)
     info.values.should == [1, 2, 3]
-    info.descriptor.should == [:keywords, :b, :c] if truffleruby?
+    info.descriptor.should == [:b, :c, :no_splat] if truffleruby?
     info.arguments.should == [1, {b: 2, c: 3}] if truffleruby?
   end
 
   it "do not contain missing optional keyword arguments" do
     info = posn_kws_defaults(1, b: 2)
     info.values.should == [1, 2, 102]
-    info.descriptor.should == [:keywords, :b] if truffleruby?
+    info.descriptor.should == [:b, :no_splat] if truffleruby?
     info.arguments.should == [1, {b: 2}] if truffleruby?
 
     info = posn_kws_defaults(1, c: 3)
     info.values.should == [1, 101, 3]
-    info.descriptor.should == [:keywords, :c] if truffleruby?
+    info.descriptor.should == [:c, :no_splat] if truffleruby?
     info.arguments.should == [1, {c: 3}] if truffleruby?
   end
 
@@ -122,15 +122,43 @@ describe "Arguments descriptors" do
     distant = {b: 2}
     info = only_kws(a: 1, **distant)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :post_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
   it "do not contain the name of near explicitly splatted keyword arguments" do
     info = only_kws(a: 1, **{b: 2})
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :post_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
+  end
+
+  it "overwrite earlier splatted keyword arguments" do
+    splatted = {b: 3}
+    info = only_kws(**splatted, a: 1, b: 2)
+    info.values.should == [1, 2]
+    info.descriptor.should == [:a, :b, :pre_splat] if truffleruby?
+    info.arguments.should == [{a: 1, b: 2}] if truffleruby?
+  end
+
+  it "do not overwrite later splatted keyword arguments" do
+    splatted = {b: 3}
+    info = only_kws(a: 1, b: 2, **splatted)
+    info.values.should == [1, 3]
+    info.descriptor.should == [:a, :b, :post_splat] if truffleruby?
+    info.arguments.should == [{a: 1, b: 3}] if truffleruby?
+  end
+
+  it "cause correct copy of an only-splat" do
+    def kwargs(**kwargs)
+      info(kwargs, Primitive.arguments_descriptor, Primitive.arguments)
+    end
+
+    splatted = {b: 3}
+    info = kwargs(**splatted)
+    info.values.should_not.equal?(splatted)
+    info.descriptor.should == [:only_splat] if truffleruby?
+    info.arguments[0].should.equal?(splatted) if truffleruby?
   end
 
   it "contain the name of present optional keyword arguments without the optional positional" do
@@ -140,7 +168,7 @@ describe "Arguments descriptors" do
 
     info = opt_and_kws(1, c: 3)
     info.values.should == [1, 2, 3]
-    info.descriptor.should == [:keywords, :c] if truffleruby?
+    info.descriptor.should == [:c, :no_splat] if truffleruby?
     info.arguments.should == [1, {c: 3}] if truffleruby?
   end
 
@@ -197,7 +225,7 @@ describe "Arguments descriptors" do
 
     info = struct_new_like('A', :a, :b, c: 1)
     info.values.should == ['A', [:a, :b], 1]
-    info.descriptor.should == [:keywords, :c] if truffleruby?
+    info.descriptor.should == [:c, :no_splat] if truffleruby?
     info.arguments.should == ['A', :a, :b, {c: 1}] if truffleruby?
 
     info = struct_new_like('A', :a, :b, {c: 1})
@@ -207,13 +235,13 @@ describe "Arguments descriptors" do
 
     info = struct_new_like('A', :a, :b, **{c: 1})
     info.values.should == ['A', [:a, :b], 1]
-    info.descriptor.should == [:keywords] if truffleruby?
+    info.descriptor.should == [:only_splat] if truffleruby?
     info.arguments.should == ['A', :a, :b, {c: 1}] if truffleruby?
 
     distant = {c: 1}
     info = struct_new_like('A', :a, :b, **distant)
     info.values.should == ['A', [:a, :b], 1]
-    info.descriptor.should == [:keywords] if truffleruby?
+    info.descriptor.should == [:only_splat] if truffleruby?
     info.arguments.should == ['A', :a, :b, {c: 1}] if truffleruby?
 
     -> { struct_new_like('A', :a, :b, d: 1) }.should raise_error(ArgumentError)
@@ -240,7 +268,7 @@ describe "Arguments descriptors" do
 
     info = describe_like(1, b: 2)
     info.values.should == [1, {b: 2}]
-    info.descriptor.should == [:keywords, :b] if truffleruby?
+    info.descriptor.should == [:b, :no_splat] if truffleruby?
     info.arguments.should == [1, {b: 2}] if truffleruby?
   end
 
@@ -262,7 +290,7 @@ describe "Arguments descriptors" do
 
     info = rest(a: 1, b: 2)
     info.values.should == [[{a: 1, b: 2}]]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -273,7 +301,7 @@ describe "Arguments descriptors" do
 
     info = kw_rest(a: 1, b: 2)
     info.values.should == [{a: 1, b: 2}]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -284,17 +312,17 @@ describe "Arguments descriptors" do
 
     info = kw_and_kw_rest(a: 1)
     info.values.should == [1, {}]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
 
     info = kw_and_kw_rest(a: 1, b: 2, c: 3)
     info.values.should == [1, {b: 2, c: 3}]
-    info.descriptor.should == [:keywords, :a, :b, :c] if truffleruby?
+    info.descriptor.should == [:a, :b, :c, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2, c: 3}] if truffleruby?
 
     info = kw_and_kw_rest("abc" => 123, a: 1, b: 2)
     info.values.should == [1, {"abc" => 123, b: 2}]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{"abc" => 123, a: 1, b: 2}] if truffleruby?
   end
 
@@ -310,7 +338,7 @@ describe "Arguments descriptors" do
 
     info = mixture(1, 2, e: 3)
     info.values.should == [1, nil, nil, 2, 3, {}]
-    info.descriptor.should == [:keywords, :e] if truffleruby?
+    info.descriptor.should == [:e, :no_splat] if truffleruby?
     info.arguments.should == [1, 2, {e: 3}] if truffleruby?
 
     info = mixture(1, 2, {foo: :bar})
@@ -345,7 +373,7 @@ describe "Arguments descriptors" do
 
     info = new_kw.new(a: 1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -358,7 +386,7 @@ describe "Arguments descriptors" do
 
     info = new_rest.new(a: 1, b: 2)
     info.values.should == [[{a: 1, b: 2}]]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -373,7 +401,7 @@ describe "Arguments descriptors" do
 
     info = delegator(a: 1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords] if truffleruby?
+    info.descriptor.should == [:only_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -392,7 +420,7 @@ describe "Arguments descriptors" do
 
     info = child.new.implicit_super(a: 1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords] if truffleruby?
+    info.descriptor.should == [:no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -411,7 +439,7 @@ describe "Arguments descriptors" do
 
     info = child.new.explicit_super(a: 1, b: 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -428,7 +456,7 @@ describe "Arguments descriptors" do
 
     info = use_yielder(1, 2)
     info.values.should == [1, 2]
-    info.descriptor.should == [:keywords, :a, :b] if truffleruby?
+    info.descriptor.should == [:a, :b, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1, b: 2}] if truffleruby?
   end
 
@@ -437,7 +465,7 @@ describe "Arguments descriptors" do
       info([args, kwargs], Primitive.arguments_descriptor, Primitive.arguments)
     end
     info.values.should == [[], {a: 1}]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
   end
 
@@ -446,7 +474,7 @@ describe "Arguments descriptors" do
       ArgumentsDescriptorSpecs::Info.new([args, kwargs], Primitive.arguments_descriptor, Primitive.arguments)
     end
     info.values.should == [[], {a: 1}]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
   end
 
@@ -455,7 +483,7 @@ describe "Arguments descriptors" do
       ArgumentsDescriptorSpecs::Info.new([args, kwargs], Primitive.arguments_descriptor, Primitive.arguments)
     end.call(a: 1)
     info.values.should == [[], {a: 1}]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
   end
 
@@ -464,7 +492,7 @@ describe "Arguments descriptors" do
       ArgumentsDescriptorSpecs::Info.new([args, kwargs], Primitive.arguments_descriptor, Primitive.arguments)
     end.value
     info.values.should == [[], {a: 1}]
-    info.descriptor.should == [:keywords] if truffleruby?
+    info.descriptor.should == [:only_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
   end
 
@@ -473,7 +501,7 @@ describe "Arguments descriptors" do
       ArgumentsDescriptorSpecs::Info.new([args, kwargs], Primitive.arguments_descriptor, Primitive.arguments)
     end.resume(a: 1)
     info.values.should == [[], {a: 1}]
-    info.descriptor.should == [:keywords, :a] if truffleruby?
+    info.descriptor.should == [:a, :no_splat] if truffleruby?
     info.arguments.should == [{a: 1}] if truffleruby?
 
     Fiber.new(&-> { true }).resume(**{}).should == true
