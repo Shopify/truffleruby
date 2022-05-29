@@ -15,8 +15,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import com.oracle.truffle.api.TruffleSafepoint;
 import org.jcodings.Encoding;
@@ -391,6 +393,10 @@ public class BodyTranslator extends Translator {
 
     @Override
     public RubyNode visitArgsPushNode(ArgsPushParseNode node) {
+        if (node.getSecondNode() == excludeArgNode) {
+            return node.getFirstNode().accept(this);
+        }
+
         final RubyNode args = node.getFirstNode().accept(this);
         final RubyNode value = node.getSecondNode().accept(this);
         final RubyNode ret = ArrayAppendOneNodeGen.create(
@@ -406,13 +412,17 @@ public class BodyTranslator extends Translator {
     public RubyNode visitArrayNode(ArrayParseNode node) {
         final ParseNode[] values = node.children();
 
-        final RubyNode[] translatedValues = createArray(values.length);
+        final List<RubyNode> translatedValues = new ArrayList<>();
 
         for (int n = 0; n < values.length; n++) {
-            translatedValues[n] = values[n].accept(this);
+            if (values[n] == excludeArgNode) {
+                continue;
+            }
+
+            translatedValues.add(values[n].accept(this));
         }
 
-        final RubyNode ret = ArrayLiteralNode.create(language, translatedValues);
+        final RubyNode ret = ArrayLiteralNode.create(language, translatedValues.toArray(RubyNode.EMPTY_ARRAY));
         ret.unsafeSetSourceSection(node.getPosition());
         return addNewlineIfNeeded(node, ret);
     }
@@ -675,14 +685,35 @@ public class BodyTranslator extends Translator {
 
     public Deque<Integer> frameOnStackMarkerSlotStack = new ArrayDeque<>();
 
+    ParseNode excludeArgNode = null;
+
     protected ArgumentsAndBlockTranslation translateArgumentsAndBlock(SourceIndexLength sourceSection,
             ParseNode iterNode, ParseNode argsNode, String nameToSetWhenTranslatingBlock) {
         assert !(argsNode instanceof IterParseNode);
 
-        final ArgumentsDescriptor keywordDescriptor = getKeywordArgumentsDescriptor(language, argsNode);
+        final ArgumentsDescriptor descriptor = getKeywordArgumentsDescriptor(language, argsNode);
+        
+        if (descriptor instanceof KeywordArgumentsDescriptor) {
 
-        final ParseNode[] arguments;
+
+        // We want to remove the last argument from the tree that constructs the arguments array, if it's keyword arguments
+        HashParseNode literalKeywordArgumentsNode = null;
+        ParseNode previousExcludeArgNode = excludeArgNode;
+
+
+
+        if (descriptor instanceof KeywordArgumentsDescriptor) {
+            final ParseNode lastNode = findLastNode(argsNode);
+            if (lastNode instanceof HashParseNode && ((HashParseNode) lastNode).isKeywordArguments()) {
+                literalKeywordArgumentsNode = (HashParseNode) lastNode;
+                // Remove from the arguments tree
+                excludeArgNode = literalKeywordArgumentsNode;
+            }
+        }
+
+        ParseNode[] arguments;
         boolean isSplatted = false;
+        ParseNode splatArgument = null;
 
         if (argsNode == null) {
             // No arguments
@@ -690,24 +721,91 @@ public class BodyTranslator extends Translator {
         } else if (argsNode instanceof ArrayParseNode) {
             // Multiple arguments
             arguments = ((ArrayParseNode) argsNode).children();
-        } else if (argsNode instanceof SplatParseNode || argsNode instanceof ArgsCatParseNode ||
-                argsNode instanceof ArgsPushParseNode) {
+
+            if (arguments[arguments.length - 1] == excludeArgNode) {
+                arguments = Arrays.copyOf(arguments, arguments.length - 1);
+            }
+        } else if (argsNode instanceof SplatParseNode) {
             isSplatted = true;
             arguments = new ParseNode[]{ argsNode };
+        } else if (argsNode instanceof ArgsCatParseNode) {
+            isSplatted = true;
+            if (descriptor instanceof KeywordArgumentsDescriptor) {
+                final ArgsCatParseNode splatArgsNode = (ArgsCatParseNode) argsNode;
+                splatArgument = splatArgsNode.getFirstNode();
+                arguments = ParseNode.EMPTY_ARRAY;
+            } else {
+                arguments = new ParseNode[]{ argsNode };
+            }
+        } else if (argsNode instanceof ArgsPushParseNode) {
+            if (descriptor instanceof KeywordArgumentsDescriptor) {
+                final ArgsPushParseNode splatArgsNode = (ArgsPushParseNode) argsNode;
+                assert splatArgsNode.getSecondNode() == literalKeywordArgumentsNode;
+
+                final ParseNode otherArgsNode = splatArgsNode.getFirstNode();
+
+                if ()
+
+
+                splatArgument = splatArgsNode.getSecondNode();
+            } else {
+                isSplatted = true;
+                arguments = new ParseNode[]{ argsNode };
+            }
         } else {
-            throw CompilerDirectives.shouldNotReachHere("Unknown argument node type: " + argsNode.getClass());
+            throw CompilerDirectives.shouldNotReachHere();
         }
 
-        final RubyNode[] argumentsTranslated = createArray(arguments.length);
+        final List<RubyNode> argumentsTranslated = new ArrayList<>(arguments.length);
         for (int i = 0; i < arguments.length; i++) {
-            argumentsTranslated[i] = arguments[i].accept(this);
+            argumentsTranslated.add(arguments[i].accept(this));
+        }
+
+        if (literalKeywordArgumentsNode != null) {
+            /*
+             * Having removed the literal keyword arguments hash, we now put the values from it as additional flat
+             * translated arguments.
+             */
+
+            final KeywordArgumentsDescriptor keywordDescriptor = (KeywordArgumentsDescriptor) descriptor;
+
+            final Map<String, ParseNode> valueNodes = new HashMap<>();
+            for (ParseNodeTuple pair : literalKeywordArgumentsNode.getPairs()) {
+                if (pair.getKey() == null) {
+                    assert keywordDescriptor.getSplatType() != KeywordArgumentsDescriptor.SplatType.NO_SPLAT;
+                    continue;
+                }
+
+                if (pair.getKey() instanceof SymbolParseNode) {
+                    final SymbolParseNode symbolKey = (SymbolParseNode) pair.getKey();
+                    valueNodes.put(symbolKey.getName(), pair.getValue());
+                }
+            }
+            assert valueNodes.size() == keywordDescriptor.getKeywords().length;
+
+            for (String keyword : keywordDescriptor.getKeywords()) {
+                final ParseNode valueNode = valueNodes.get(keyword);
+                assert valueNode != null;
+                argumentsTranslated.add(valueNode.accept(this));
+            }
+
+            switch (keywordDescriptor.getSplatType()) {
+                case NO_SPLAT:
+                case ONLY_SPLAT:
+                    // We removed the hash literal node from the arguments - push a sentinel value instead
+                    argumentsTranslated.add(new ObjectLiteralNode(language.getSymbol("elided_keyword_hash")));
+                    break;
+                case PRE_SPLAT:
+                case POST_SPLAT:
+                    argumentsTranslated.add(splatArgument.accept(this));
+            }
         }
 
         if (isSplatted) {
-            assert argumentsTranslated.length == 1;
+            assert argumentsTranslated.size() >= 1;
             // No need to copy the array for call(*splat), the elements will be copied to the frame arguments
-            if (argumentsTranslated[0] instanceof SplatCastNode) {
-                ((SplatCastNode) argumentsTranslated[0]).doNotCopy();
+            if (argumentsTranslated.get(0) instanceof SplatCastNode) {
+                ((SplatCastNode) argumentsTranslated.get(0)).doNotCopy();
             }
         }
 
@@ -746,11 +844,13 @@ public class BodyTranslator extends Translator {
 
         currentCallMethodName = null;
 
+        excludeArgNode = previousExcludeArgNode;
+
         return new ArgumentsAndBlockTranslation(
                 blockTranslated,
-                argumentsTranslated,
+                argumentsTranslated.toArray(RubyNode.EMPTY_ARRAY),
                 isSplatted,
-                keywordDescriptor,
+                descriptor,
                 frameOnStackMarkerSlot);
     }
 

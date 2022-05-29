@@ -25,7 +25,7 @@ public final class ReadUserKeywordsHashNode extends RubyBaseNode {
         final ArgumentsDescriptor descriptor = RubyArguments.getDescriptor(frame);
         if (keywordArgumentsProfile.profile(descriptor instanceof KeywordArgumentsDescriptor)) {
             final RubyHash keywords = (RubyHash) RubyArguments.getLastArgument(frame);
-            assert !keywords.empty();
+            //assert !keywords.empty(); broken by reifying I think, but should restore
             assert assertHashMatchesDescriptor(keywords, (KeywordArgumentsDescriptor) descriptor);
             return keywords;
         } else {

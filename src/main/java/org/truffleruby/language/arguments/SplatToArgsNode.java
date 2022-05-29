@@ -26,10 +26,20 @@ public class SplatToArgsNode extends RubyBaseNode {
         stores = ArrayStoreLibrary.getFactory().createDispatched(ArrayGuards.storageStrategyLimit());
     }
 
-    public Object[] execute(Object receiver, RubyArray splatted) {
+    public Object[] execute(Object receiver, ArgumentsDescriptor descriptor, Object[] rubyArgs, RubyArray splatted) {
         int size = splatSizeProfile.profile(splatted.size);
         Object store = splatted.store;
-        final Object[] newArgs = RubyArguments.allocate(size);
+        final Object[] newArgs;
+
+        if (descriptor instanceof KeywordArgumentsDescriptor) {
+            final int keywordsCount = ((KeywordArgumentsDescriptor) descriptor).getKeywords().length;
+            final int copyCount = keywordsCount + 1;
+            newArgs = RubyArguments.allocate(size + copyCount);
+            System.arraycopy(rubyArgs, rubyArgs.length - copyCount, newArgs, newArgs.length - copyCount, copyCount);
+        } else {
+            newArgs = RubyArguments.allocate(size);
+        }
+
         RubyArguments.setSelf(newArgs, receiver);
         stores.copyContents(store, 0, newArgs, RubyArguments.RUNTIME_ARGUMENT_COUNT, size);
         return newArgs;

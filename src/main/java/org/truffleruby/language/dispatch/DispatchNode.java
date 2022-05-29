@@ -16,11 +16,14 @@ import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.nodes.DenyReplace;
 import com.oracle.truffle.api.nodes.DirectCallNode;
+import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.nodes.NodeCost;
 import com.oracle.truffle.api.profiles.BranchProfile;
 import com.oracle.truffle.api.profiles.ConditionProfile;
+import org.truffleruby.RubyContext;
 import org.truffleruby.core.cast.ToSymbolNode;
 import org.truffleruby.core.exception.ExceptionOperations.ExceptionFormatter;
+import org.truffleruby.core.hash.HashOperations;
 import org.truffleruby.core.hash.RubyHash;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.symbol.RubySymbol;
@@ -29,6 +32,7 @@ import org.truffleruby.language.RubyGuards;
 import org.truffleruby.language.RubyRootNode;
 import org.truffleruby.language.arguments.ArgumentsDescriptor;
 import org.truffleruby.language.arguments.EmptyArgumentsDescriptor;
+import org.truffleruby.language.arguments.KeywordArgumentsDescriptor;
 import org.truffleruby.language.arguments.KeywordArgumentsDescriptorManager;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.control.RaiseException;
@@ -297,6 +301,8 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
         final RubyClass metaclass = metaClassNode.execute(receiver);
         final InternalMethod method = lookupMethodNode.execute(frame, metaclass, methodName, config);
 
+        final Object[] reifiedRubyArgs = reifyKeywordArgumentsHash(this, getContext(), rubyArgs);
+        
         if (methodMissingProfile.profile(method == null || method.isUndefined())) {
             switch (config.missingBehavior) {
                 case RETURN_MISSING:
@@ -304,18 +310,77 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
                 case CALL_METHOD_MISSING:
                     // Both branches implicitly profile through lazy node creation
                     if (RubyGuards.isForeignObject(receiver)) { // TODO (eregon, 16 Aug 2021) maybe use a final boolean on the class to know if foreign
-                        return callForeign(receiver, methodName, rubyArgs);
+                        return callForeign(receiver, methodName, reifiedRubyArgs);
                     } else {
-                        return callMethodMissing(frame, receiver, methodName, rubyArgs, literalCallNode);
+                        return callMethodMissing(frame, receiver, methodName, reifiedRubyArgs, literalCallNode);
                     }
             }
         }
 
-        RubyArguments.setMethod(rubyArgs, method);
-        RubyArguments.setCallerData(rubyArgs, getFrameOrStorageIfRequired(frame));
+        RubyArguments.setMethod(reifiedRubyArgs, method);
+        RubyArguments.setCallerData(reifiedRubyArgs, getFrameOrStorageIfRequired(frame));
 
-        assert RubyArguments.assertFrameArguments(rubyArgs);
-        return callNode.execute(frame, method, receiver, rubyArgs, literalCallNode);
+        assert RubyArguments.assertFrameArguments(reifiedRubyArgs, true);
+        return callNode.execute(frame, method, receiver, reifiedRubyArgs, literalCallNode);
+    }
+
+    @CompilerDirectives.TruffleBoundary
+    private static Object[] reifyKeywordArgumentsHash(Node currentNode, RubyContext context, Object[] rubyArgs) {
+        final ArgumentsDescriptor descriptor = RubyArguments.getDescriptor(rubyArgs);
+
+        if (descriptor instanceof EmptyArgumentsDescriptor) {
+            return rubyArgs;
+        }
+
+        final KeywordArgumentsDescriptor keywordDescriptor = (KeywordArgumentsDescriptor) descriptor;
+
+        final Object passedKeywordHash = rubyArgs[rubyArgs.length - 1];
+        final RubyHash reifiedKeywordHash = HashOperations.newEmptyHash(context, context.getLanguageSlow());
+
+        final KeywordArgumentsDescriptor.SplatType mergeType;
+
+        switch (keywordDescriptor.getSplatType()) {
+            case NO_SPLAT:
+                //assert passedKeywordHash instanceof RubySymbol && ((RubySymbol) passedKeywordHash).getString().equals("elided_keyword_hash") : passedKeywordHash;
+                mergeType = KeywordArgumentsDescriptor.SplatType.NO_SPLAT;
+                break;
+            case PRE_SPLAT:
+            case ONLY_SPLAT:
+                //assert passedKeywordHash instanceof RubyHash : passedKeywordHash;
+                mergeType = KeywordArgumentsDescriptor.SplatType.PRE_SPLAT;
+                break;
+            case POST_SPLAT:
+                //assert passedKeywordHash instanceof RubyHash : passedKeywordHash;
+                mergeType = KeywordArgumentsDescriptor.SplatType.POST_SPLAT;
+                break;
+            default:
+                throw CompilerDirectives.shouldNotReachHere();
+        }
+
+        if (mergeType == KeywordArgumentsDescriptor.SplatType.PRE_SPLAT && passedKeywordHash instanceof RubyHash) {
+            RubyContext.send(currentNode, reifiedKeywordHash, "merge!", passedKeywordHash);
+        }
+
+        for (int n = 0; n < keywordDescriptor.getKeywords().length; n++) {
+            final RubySymbol key = context.getLanguageSlow().getSymbol(keywordDescriptor.getKeywords()[n]);
+            final Object value = rubyArgs[rubyArgs.length - 1 - keywordDescriptor.getKeywords().length + n];
+            RubyContext.send(currentNode, reifiedKeywordHash, "[]=", key, value);
+        }
+
+        if (mergeType == KeywordArgumentsDescriptor.SplatType.POST_SPLAT && passedKeywordHash instanceof RubyHash) {
+            RubyContext.send(currentNode, reifiedKeywordHash, "merge!", passedKeywordHash);
+        }
+
+        /*if (reifiedKeywordHash.size == 0) {
+            final Object[] reified = new Object[rubyArgs.length - keywordDescriptor.getKeywords().length - 1];
+            System.arraycopy(rubyArgs, 0, reified, 0, reified.length);
+            return reified;
+        } else {*/
+            final Object[] reified = new Object[rubyArgs.length - keywordDescriptor.getKeywords().length];
+            System.arraycopy(rubyArgs, 0, reified, 0, reified.length - 1);
+            reified[reified.length - 1] = reifiedKeywordHash;
+            return reified;
+        //}
     }
 
     private Object callMethodMissing(Frame frame, Object receiver, String methodName, Object[] rubyArgs,

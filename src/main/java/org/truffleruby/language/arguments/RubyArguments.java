@@ -48,6 +48,10 @@ public final class RubyArguments {
     static final int RUNTIME_ARGUMENT_COUNT = ArgumentIndicies.values().length;
 
     public static boolean assertFrameArguments(Object[] rubyArgs) {
+        return assertFrameArguments(rubyArgs, false);
+    }
+
+    public static boolean assertFrameArguments(Object[] rubyArgs, boolean reified) {
         assert rubyArgs.length >= RUNTIME_ARGUMENT_COUNT;
 
         final Object declarationFrame = rubyArgs[ArgumentIndicies.DECLARATION_FRAME.ordinal()];
@@ -75,7 +79,7 @@ public final class RubyArguments {
         Object descriptor = rubyArgs[ArgumentIndicies.DESCRIPTOR.ordinal()];
         assert descriptor instanceof ArgumentsDescriptor : descriptor;
 
-        if (descriptor instanceof KeywordArgumentsDescriptor) {
+        if (descriptor instanceof KeywordArgumentsDescriptor && !reified) {
             final Object lastArgument = getLastArgument(rubyArgs);
             assert lastArgument instanceof RubyHash : "the last frame argument must be a Hash with a kwargs descriptor";
             assert !((RubyHash) lastArgument).empty() : "empty kwargs should not have been passed";

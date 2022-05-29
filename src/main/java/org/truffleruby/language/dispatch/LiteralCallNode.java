@@ -77,7 +77,15 @@ public abstract class LiteralCallNode extends RubyContextSourceNode {
     protected boolean emptyKeywordArguments(Object[] args) {
         assert isSplatted || descriptor instanceof KeywordArgumentsDescriptor;
 
-        if (((RubyHash) ArrayUtils.getLast(args)).empty()) {
+        if (descriptor instanceof KeywordArgumentsDescriptor) {
+            final KeywordArgumentsDescriptor keywordDescriptor = (KeywordArgumentsDescriptor) descriptor;
+            if (keywordDescriptor.getKeywords().length == 0 && keywordDescriptor.getSplatType() == KeywordArgumentsDescriptor.SplatType.NO_SPLAT) {
+                return true;
+            }
+        }
+
+        final Object last = ArrayUtils.getLast(args);
+        if (last instanceof RubyHash && ((RubyHash) last).empty()) {
             if (!emptyKeywordsProfile) {
                 CompilerDirectives.transferToInterpreterAndInvalidate();
                 emptyKeywordsProfile = true;
