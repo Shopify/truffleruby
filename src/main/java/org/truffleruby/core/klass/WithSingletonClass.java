@@ -8,8 +8,8 @@ import org.truffleruby.language.objects.SingletonClassNode;
 public class WithSingletonClass implements ClassLike {
 
 
-    private final RubyContext context;
-    private final Node node;
+    public final RubyContext context;
+    public final Node node;
 
     public WithSingletonClass(RubyContext context, Node node){
         this.context = context;
@@ -18,7 +18,7 @@ public class WithSingletonClass implements ClassLike {
 
     @Override
     public RubyClass reify(Object object) {
-        return SingletonClassNode.getSingletonClassForInstance(context, (RubyDynamicObject) object, node);
+        throw new UnsupportedOperationException();
     }
 
 //    public SourceSection getSourceSection() {

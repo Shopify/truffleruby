@@ -10,6 +10,10 @@ public class ConcreteClass implements ClassLike {
 
     @Override
     public RubyClass reify(Object object) {
+        throw new UnsupportedOperationException();
+    }
+
+    public RubyClass getConcrete() {
         return concreteClass;
     }
 

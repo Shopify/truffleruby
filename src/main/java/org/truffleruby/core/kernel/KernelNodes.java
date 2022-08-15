@@ -65,7 +65,9 @@ import org.truffleruby.core.hash.library.PackedHashStoreLibrary;
 import org.truffleruby.core.inlined.AlwaysInlinedMethodNode;
 import org.truffleruby.core.kernel.KernelNodesFactory.SameOrEqualNodeFactory;
 import org.truffleruby.core.kernel.KernelNodesFactory.SingletonMethodsNodeFactory;
+import org.truffleruby.core.klass.ClassLike;
 import org.truffleruby.core.klass.RubyClass;
+import org.truffleruby.core.klass.WithMethod;
 import org.truffleruby.core.method.MethodFilter;
 import org.truffleruby.core.method.RubyMethod;
 import org.truffleruby.core.method.RubyUnboundMethod;
@@ -852,13 +854,13 @@ public abstract class KernelNodes {
         @Specialization
         protected RubySymbol defineMethodBlock(
                 VirtualFrame frame, Object object, String name, NotProvided proc, RubyProc block) {
-            return defineMethod(singletonClassNode.executeSingletonClass(object).reify(object), name, block, readCallerFrame.execute(frame));
+            return defineMethod(object, singletonClassNode.executeSingletonClass(object), name, block, readCallerFrame.execute(frame));
         }
 
         @Specialization
         protected RubySymbol defineMethodProc(
                 VirtualFrame frame, Object object, String name, RubyProc proc, Nil block) {
-            return defineMethod(singletonClassNode.executeSingletonClass(object).reify(object), name, proc, readCallerFrame.execute(frame));
+            return defineMethod(object, singletonClassNode.executeSingletonClass(object), name, proc, readCallerFrame.execute(frame));
         }
 
         @TruffleBoundary
@@ -911,15 +913,15 @@ public abstract class KernelNodes {
                 }
             }
 
-            return addMethod(singletonClassNode.executeSingletonClass(object).reify(object), name, internalMethod, callerFrame);
+            return addMethod(object, singletonClassNode.executeSingletonClass(object), name, internalMethod, callerFrame);
         }
 
         @TruffleBoundary
-        private RubySymbol defineMethod(RubyModule module, String name, RubyProc proc,
+        private RubySymbol defineMethod(Object object, ClassLike module, String name, RubyProc proc,
                                         MaterializedFrame callerFrame) {
             final RootCallTarget callTargetForLambda = proc.callTargets.getCallTargetForLambda();
             final RubyLambdaRootNode rootNode = RubyLambdaRootNode.of(callTargetForLambda);
-            final SharedMethodInfo info = proc.getSharedMethodInfo().forDefineMethod(module, name, proc);
+            final SharedMethodInfo info = proc.getSharedMethodInfo().forDefineMethod(module.reify(object), name, proc);
             final RubyNode body = rootNode.copyBody();
             final RubyNode newBody = new ModuleNodes.DefineMethodNode.CallMethodWithLambdaBody(isSingleContext() ? proc : null,
                     callTargetForLambda, body);
@@ -932,21 +934,27 @@ public abstract class KernelNodes {
                     info,
                     proc.declarationContext,
                     name,
-                    module,
+                    module.reify(object),
                     Visibility.PUBLIC,
                     proc,
                     newCallTarget);
-            return addMethod(module, name, method, callerFrame);
+            return addMethod(object, module, name, method, callerFrame);
         }
 
         @TruffleBoundary
-        private RubySymbol addMethod(RubyModule module, String name, InternalMethod method,
+        private RubySymbol addMethod(Object object, ClassLike module, String name, InternalMethod method,
                                      MaterializedFrame callerFrame) {
             method = method.withName(name);
 
+
             final Visibility visibility = DeclarationContext
-                    .findVisibilityCheckSelfAndDefaultDefinee(module, callerFrame);
-            module.addMethodConsiderNameVisibility(getContext(), method, visibility, this);
+                    .findVisibilityCheckSelfAndDefaultDefinee(module.reify(object), callerFrame);
+
+            //final ClassLike newModule = new WithMethod(module, method, getContext(), visibility, this);
+            //((RubyDynamicObject) object).setMetaClass(newModule);
+
+            module.reify(object).addMethodConsiderNameVisibility(getContext(), method, visibility, this);
+
             return getSymbol(method.getName());
         }
 

@@ -12,6 +12,7 @@ package org.truffleruby.language;
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.interop.StopIterationException;
 import com.oracle.truffle.api.interop.UnknownKeyException;
+import com.oracle.truffle.api.nodes.Node;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.array.ArrayUtils;
@@ -21,8 +22,12 @@ import org.truffleruby.core.cast.LongCastNode;
 import org.truffleruby.core.cast.ToLongNode;
 import org.truffleruby.core.kernel.KernelNodes;
 import org.truffleruby.core.klass.ClassLike;
+import org.truffleruby.core.klass.ClassNodes;
 import org.truffleruby.core.klass.ConcreteClass;
 import org.truffleruby.core.klass.RubyClass;
+import org.truffleruby.core.klass.WithMethod;
+import org.truffleruby.core.klass.WithSingletonClass;
+import org.truffleruby.core.module.RubyModule;
 import org.truffleruby.core.range.RubyObjectRange;
 import org.truffleruby.core.string.RubyString;
 import org.truffleruby.core.string.StringUtils;
@@ -37,6 +42,7 @@ import org.truffleruby.language.library.RubyStringLibrary;
 import org.truffleruby.language.methods.GetMethodObjectNode;
 import org.truffleruby.language.objects.IsANode;
 import org.truffleruby.language.objects.LogicalClassNode;
+import org.truffleruby.language.objects.SingletonClassNode;
 import org.truffleruby.language.objects.WriteObjectFieldNode;
 
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
@@ -60,6 +66,12 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 import com.oracle.truffle.api.utilities.TriState;
 import org.truffleruby.language.objects.shared.SharedObjects;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static org.truffleruby.language.objects.SingletonClassNode.getSingletonClassForInstance;
+
 /** All Ruby DynamicObjects extend this. */
 @ExportLibrary(RubyLibrary.class)
 @ExportLibrary(InteropLibrary.class)
@@ -82,12 +94,86 @@ public abstract class RubyDynamicObject extends DynamicObject {
 
     @TruffleBoundary
     public final RubyClass getMetaClass() {
-        return metaClass.reify(this);
+        if (!(metaClass instanceof ConcreteClass)) {
+            resolveClassLike();
+        }
+        return ((ConcreteClass) metaClass).getConcrete();
+    }
+
+    public final ClassLike getClassLike() {
+        return metaClass;
+    }
+
+    private void resolveClassLike() {
+        // Should this whole thing have a lock around it?
+
+        assert !(metaClass instanceof ConcreteClass);
+
+        final List<ClassLike> toApply = new ArrayList<>();
+        ClassLike n = metaClass;
+        while (true) {
+            toApply.add(n);
+            if (n instanceof ConcreteClass) {
+                break;
+            } else if (n instanceof WithSingletonClass) {
+                break;
+            } else if (n instanceof WithMethod) {
+                n = ((WithMethod) n).underlying;
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+        Collections.reverse(toApply);
+
+        RubyModule resultingModule = null;
+
+        for (ClassLike action : toApply) {
+            if (action instanceof ConcreteClass) {
+                resultingModule = ((ConcreteClass) action).getConcrete();
+            } else if (action instanceof WithSingletonClass) {
+                resultingModule = getSingletonClassForInstance(resultingModule, ((WithSingletonClass) action).context, this, ((WithSingletonClass) action).node);
+            } else if (action instanceof WithMethod) {
+                resultingModule.addMethodConsiderNameVisibility(((WithMethod) action).context, ((WithMethod) action).method, ((WithMethod) action).visibility, ((WithMethod) action).node);
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+
+        metaClass = new ConcreteClass((RubyClass) resultingModule);
+
+        assert metaClass instanceof ConcreteClass;
+    }
+
+    public static RubyClass getSingletonClassForInstance(RubyModule resultingModule, RubyContext context, RubyDynamicObject object, Node node) {
+        final RubyClass logicalClass = (RubyClass) resultingModule;
+
+        final RubyClass singletonClass = ClassNodes.createSingletonClassOfObject(
+                context,
+                node.getEncapsulatingSourceSection(),
+                logicalClass,
+                object);
+
+        if (RubyLibrary.getUncached().isFrozen(object)) {
+            RubyLibrary.getUncached().freeze(singletonClass);
+        }
+
+        SharedObjects.propagate(context.getLanguageSlow(), object, singletonClass);
+
+        //object.setMetaClass(singletonClass);
+//            object.setClassLike(new WithSingletonClass(object.getClassLike()));
+
+        return singletonClass;
     }
 
     public void setMetaClass(RubyClass metaClass) {
         SharedObjects.assertPropagateSharing(this, metaClass);
         this.metaClass = new ConcreteClass(metaClass);
+    }
+
+    public void setMetaClass(ClassLike metaClass){
+        //SharedObjects.assertPropagateSharing(this, metaClass.reify(this));
+        //this.metaClass = metaClass;
+        throw new UnsupportedOperationException();
     }
 
     public final RubyClass getLogicalClass() {
