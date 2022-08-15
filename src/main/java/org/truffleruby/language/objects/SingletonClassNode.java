@@ -137,7 +137,8 @@ public abstract class SingletonClassNode extends RubySourceNode {
 
             SharedObjects.propagate(context.getLanguageSlow(), object, singletonClass);
 
-            object.setClassLike(new WithSingletonClass(object.getClassLike()));
+            object.setMetaClass(singletonClass);
+//            object.setClassLike(new WithSingletonClass(object.getClassLike()));
 
             return singletonClass;
         }

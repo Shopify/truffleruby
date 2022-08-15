@@ -1366,7 +1366,7 @@ public abstract class ModuleNodes {
             return addMethod(module, name, method, callerFrame);
         }
 
-        private static class CallMethodWithLambdaBody extends RubyContextSourceNode {
+        public static class CallMethodWithLambdaBody extends RubyContextSourceNode {
 
             private final RubyProc proc;
             private final RootCallTarget lambdaCallTarget;

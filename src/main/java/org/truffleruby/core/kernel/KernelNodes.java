@@ -68,6 +68,9 @@ import org.truffleruby.core.kernel.KernelNodesFactory.SingletonMethodsNodeFactor
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.method.MethodFilter;
 import org.truffleruby.core.method.RubyMethod;
+import org.truffleruby.core.method.RubyUnboundMethod;
+import org.truffleruby.core.module.ModuleNodes;
+import org.truffleruby.core.module.ModuleOperations;
 import org.truffleruby.core.module.RubyModule;
 import org.truffleruby.core.numeric.BigIntegerOps;
 import org.truffleruby.core.numeric.RubyBignum;
@@ -99,11 +102,14 @@ import org.truffleruby.language.RubyBaseNodeWithExecute;
 import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.RubyDynamicObject;
 import org.truffleruby.language.RubyGuards;
+import org.truffleruby.language.RubyLambdaRootNode;
 import org.truffleruby.language.RubyNode;
 import org.truffleruby.language.RubyRootNode;
 import org.truffleruby.language.RubySourceNode;
+import org.truffleruby.language.Visibility;
 import org.truffleruby.language.WarnNode;
 import org.truffleruby.language.WarningNode;
+import org.truffleruby.language.arguments.ReadCallerFrameNode;
 import org.truffleruby.language.arguments.RubyArguments;
 import org.truffleruby.language.backtrace.Backtrace;
 import org.truffleruby.language.backtrace.BacktraceFormatter;
@@ -119,8 +125,12 @@ import org.truffleruby.language.library.RubyStringLibrary;
 import org.truffleruby.language.loader.RequireNode;
 import org.truffleruby.language.loader.RequireNodeGen;
 import org.truffleruby.language.locals.FindDeclarationVariableNodes.FindAndReadDeclarationVariableNode;
+import org.truffleruby.language.methods.CanBindMethodToModuleNode;
+import org.truffleruby.language.methods.DeclarationContext;
 import org.truffleruby.language.methods.GetMethodObjectNode;
 import org.truffleruby.language.methods.InternalMethod;
+import org.truffleruby.language.methods.SharedMethodInfo;
+import org.truffleruby.language.methods.Split;
 import org.truffleruby.language.objects.AllocationTracing;
 import org.truffleruby.language.objects.CheckIVarNameNode;
 import org.truffleruby.language.objects.IsANode;
@@ -808,6 +818,137 @@ public abstract class KernelNodes {
         protected int getCacheLimit() {
             return getLanguage().options.EVAL_CACHE;
         }
+    }
+
+    @CoreMethod(
+            names = "define_singleton_method",
+            needsBlock = true,
+            required = 1,
+            optional = 1,
+            split = Split.NEVER,
+            argumentNames = { "name", "proc_or_method", "block" })
+    @NodeChild(value = "module", type = RubyNode.class)
+    @NodeChild(value = "name", type = RubyBaseNodeWithExecute.class)
+    @NodeChild(value = "proc", type = RubyNode.class)
+    @NodeChild(value = "block", type = RubyNode.class)
+    public abstract static class DefineMethodNode extends CoreMethodNode {
+
+        @Child SingletonClassNode singletonClassNode = SingletonClassNode.create();
+
+        @Child private ReadCallerFrameNode readCallerFrame = ReadCallerFrameNode.create();
+
+        @CreateCast("name")
+        protected RubyBaseNodeWithExecute coerceToString(RubyBaseNodeWithExecute name) {
+            return NameToJavaStringNode.create(name);
+        }
+
+        @TruffleBoundary
+        @Specialization
+        protected RubySymbol defineMethod(Object object, String name, NotProvided proc, Nil block) {
+            throw new RaiseException(getContext(), coreExceptions().argumentError("needs either proc or block", this));
+        }
+
+        @Specialization
+        protected RubySymbol defineMethodBlock(
+                VirtualFrame frame, Object object, String name, NotProvided proc, RubyProc block) {
+            return defineMethod(singletonClassNode.executeSingletonClass(object), name, block, readCallerFrame.execute(frame));
+        }
+
+        @Specialization
+        protected RubySymbol defineMethodProc(
+                VirtualFrame frame, Object object, String name, RubyProc proc, Nil block) {
+            return defineMethod(singletonClassNode.executeSingletonClass(object), name, proc, readCallerFrame.execute(frame));
+        }
+
+        @TruffleBoundary
+        @Specialization
+        protected RubySymbol defineMethodMethod(Object object, String name, RubyMethod methodObject, Nil block,
+                                                @Cached CanBindMethodToModuleNode canBindMethodToModuleNode) {
+            final InternalMethod method = methodObject.method;
+
+            if (!canBindMethodToModuleNode.executeCanBindMethodToModule(method, singletonClassNode.executeSingletonClass(object))) {
+                final RubyModule declaringModule = method.getDeclaringModule();
+                if (RubyGuards.isSingletonClass(declaringModule)) {
+                    throw new RaiseException(getContext(), coreExceptions().typeError(
+                            "can't bind singleton method to a different class",
+                            this));
+                } else {
+                    throw new RaiseException(getContext(), coreExceptions().typeError(
+                            "class must be a subclass of " + declaringModule.fields.getName(),
+                            this));
+                }
+            }
+
+            singletonClassNode.executeSingletonClass(object).fields.addMethod(getContext(), this, method.withName(name));
+            return getSymbol(name);
+        }
+
+        @Specialization
+        protected RubySymbol defineMethod(
+                VirtualFrame frame, Object object, String name, RubyUnboundMethod method, Nil block) {
+            final MaterializedFrame callerFrame = readCallerFrame.execute(frame);
+            return defineMethodInternal(singletonClassNode.executeSingletonClass(object), name, method, callerFrame);
+        }
+
+        @TruffleBoundary
+        private RubySymbol defineMethodInternal(Object object, String name, RubyUnboundMethod method,
+                                                final MaterializedFrame callerFrame) {
+            final InternalMethod internalMethod = method.method;
+            if (!ModuleOperations.canBindMethodTo(internalMethod, singletonClassNode.executeSingletonClass(object))) {
+                final RubyModule declaringModule = internalMethod.getDeclaringModule();
+                if (RubyGuards.isSingletonClass(declaringModule)) {
+                    throw new RaiseException(getContext(), coreExceptions().typeError(
+                            "can't bind singleton method to a different class",
+                            this));
+                } else {
+                    throw new RaiseException(
+                            getContext(),
+                            coreExceptions().typeError(
+                                    "bind argument must be a subclass of " +
+                                            declaringModule.fields.getName(),
+                                    this));
+                }
+            }
+
+            return addMethod(singletonClassNode.executeSingletonClass(object), name, internalMethod, callerFrame);
+        }
+
+        @TruffleBoundary
+        private RubySymbol defineMethod(RubyModule module, String name, RubyProc proc,
+                                        MaterializedFrame callerFrame) {
+            final RootCallTarget callTargetForLambda = proc.callTargets.getCallTargetForLambda();
+            final RubyLambdaRootNode rootNode = RubyLambdaRootNode.of(callTargetForLambda);
+            final SharedMethodInfo info = proc.getSharedMethodInfo().forDefineMethod(module, name, proc);
+            final RubyNode body = rootNode.copyBody();
+            final RubyNode newBody = new ModuleNodes.DefineMethodNode.CallMethodWithLambdaBody(isSingleContext() ? proc : null,
+                    callTargetForLambda, body);
+
+            final RubyLambdaRootNode newRootNode = rootNode.copyRootNode(info, newBody);
+            final RootCallTarget newCallTarget = newRootNode.getCallTarget();
+
+            final InternalMethod method = InternalMethod.fromProc(
+                    getContext(),
+                    info,
+                    proc.declarationContext,
+                    name,
+                    module,
+                    Visibility.PUBLIC,
+                    proc,
+                    newCallTarget);
+            return addMethod(module, name, method, callerFrame);
+        }
+
+        @TruffleBoundary
+        private RubySymbol addMethod(RubyModule module, String name, InternalMethod method,
+                                     MaterializedFrame callerFrame) {
+            method = method.withName(name);
+
+            final Visibility visibility = DeclarationContext
+                    .findVisibilityCheckSelfAndDefaultDefinee(module, callerFrame);
+            module.addMethodConsiderNameVisibility(getContext(), method, visibility, this);
+            return getSymbol(method.getName());
+        }
+
     }
 
     @CoreMethod(names = "freeze")

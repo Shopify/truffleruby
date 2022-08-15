@@ -297,10 +297,10 @@ module Kernel
   end
   module_function :require_relative
   Truffle::Graal.never_split(instance_method(:require_relative))
-
-  def define_singleton_method(*args, &block)
-    singleton_class.define_method(*args, &block)
-  end
+  #
+  # def define_singleton_method(*args, &block)
+  #   singleton_class.define_method(*args, &block)
+  # end
 
   def display(port=$>)
     port.write self
