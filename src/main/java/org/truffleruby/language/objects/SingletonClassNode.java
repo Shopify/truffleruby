@@ -10,6 +10,8 @@
 package org.truffleruby.language.objects;
 
 import com.oracle.truffle.api.dsl.GenerateUncached;
+import com.oracle.truffle.api.nodes.Node;
+import org.graalvm.polyglot.SourceSection;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.klass.ClassNodes;
 import org.truffleruby.core.klass.RubyClass;
@@ -117,6 +119,11 @@ public abstract class SingletonClassNode extends RubySourceNode {
 
     @TruffleBoundary
     protected RubyClass getSingletonClassForInstance(RubyContext context, RubyDynamicObject object) {
+        return getSingletonClassForInstance(context, object, this);
+    }
+
+    @TruffleBoundary
+    public static RubyClass getSingletonClassForInstance(RubyContext context, RubyDynamicObject object, Node node) {
         synchronized (object) {
             RubyClass metaClass = object.getMetaClass();
             if (metaClass.isSingleton) {
@@ -127,7 +134,7 @@ public abstract class SingletonClassNode extends RubySourceNode {
 
             final RubyClass singletonClass = ClassNodes.createSingletonClassOfObject(
                     context,
-                    getEncapsulatingSourceSection(),
+                    node.getEncapsulatingSourceSection(),
                     logicalClass,
                     object);
 

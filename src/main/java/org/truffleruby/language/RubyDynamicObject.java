@@ -80,8 +80,9 @@ public abstract class RubyDynamicObject extends DynamicObject {
         this.metaClass = new ConcreteClass((RubyClass) this);
     }
 
+    @TruffleBoundary
     public final RubyClass getMetaClass() {
-        return metaClass.reify();
+        return metaClass.reify(this);
     }
 
     public void setMetaClass(RubyClass metaClass) {

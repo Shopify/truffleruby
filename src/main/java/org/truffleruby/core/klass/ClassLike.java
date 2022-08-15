@@ -2,6 +2,6 @@ package org.truffleruby.core.klass;
 
 public interface ClassLike {
 
-    RubyClass reify();
+    RubyClass reify(Object object);
 
 }

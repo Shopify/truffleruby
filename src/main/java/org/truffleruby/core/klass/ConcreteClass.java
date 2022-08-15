@@ -9,7 +9,7 @@ public class ConcreteClass implements ClassLike {
     }
 
     @Override
-    public RubyClass reify() {
+    public RubyClass reify(Object object) {
         return concreteClass;
     }
 

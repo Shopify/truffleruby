@@ -852,13 +852,13 @@ public abstract class KernelNodes {
         @Specialization
         protected RubySymbol defineMethodBlock(
                 VirtualFrame frame, Object object, String name, NotProvided proc, RubyProc block) {
-            return defineMethod(singletonClassNode.executeSingletonClass(object).reify(), name, block, readCallerFrame.execute(frame));
+            return defineMethod(singletonClassNode.executeSingletonClass(object).reify(object), name, block, readCallerFrame.execute(frame));
         }
 
         @Specialization
         protected RubySymbol defineMethodProc(
                 VirtualFrame frame, Object object, String name, RubyProc proc, Nil block) {
-            return defineMethod(singletonClassNode.executeSingletonClass(object).reify(), name, proc, readCallerFrame.execute(frame));
+            return defineMethod(singletonClassNode.executeSingletonClass(object).reify(object), name, proc, readCallerFrame.execute(frame));
         }
 
         @TruffleBoundary
@@ -867,7 +867,7 @@ public abstract class KernelNodes {
                                                 @Cached CanBindMethodToModuleNode canBindMethodToModuleNode) {
             final InternalMethod method = methodObject.method;
 
-            if (!canBindMethodToModuleNode.executeCanBindMethodToModule(method, singletonClassNode.executeSingletonClass(object).reify())) {
+            if (!canBindMethodToModuleNode.executeCanBindMethodToModule(method, singletonClassNode.executeSingletonClass(object).reify(object))) {
                 final RubyModule declaringModule = method.getDeclaringModule();
                 if (RubyGuards.isSingletonClass(declaringModule)) {
                     throw new RaiseException(getContext(), coreExceptions().typeError(
@@ -880,7 +880,7 @@ public abstract class KernelNodes {
                 }
             }
 
-            singletonClassNode.executeSingletonClass(object).reify().fields.addMethod(getContext(), this, method.withName(name));
+            singletonClassNode.executeSingletonClass(object).reify(object).fields.addMethod(getContext(), this, method.withName(name));
             return getSymbol(name);
         }
 
@@ -895,7 +895,7 @@ public abstract class KernelNodes {
         private RubySymbol defineMethodInternal(Object object, String name, RubyUnboundMethod method,
                                                 final MaterializedFrame callerFrame) {
             final InternalMethod internalMethod = method.method;
-            if (!ModuleOperations.canBindMethodTo(internalMethod, singletonClassNode.executeSingletonClass(object).reify())) {
+            if (!ModuleOperations.canBindMethodTo(internalMethod, singletonClassNode.executeSingletonClass(object).reify(object))) {
                 final RubyModule declaringModule = internalMethod.getDeclaringModule();
                 if (RubyGuards.isSingletonClass(declaringModule)) {
                     throw new RaiseException(getContext(), coreExceptions().typeError(
@@ -911,7 +911,7 @@ public abstract class KernelNodes {
                 }
             }
 
-            return addMethod(singletonClassNode.executeSingletonClass(object).reify(), name, internalMethod, callerFrame);
+            return addMethod(singletonClassNode.executeSingletonClass(object).reify(object), name, internalMethod, callerFrame);
         }
 
         @TruffleBoundary

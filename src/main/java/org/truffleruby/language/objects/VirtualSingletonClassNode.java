@@ -19,6 +19,7 @@ import org.truffleruby.core.klass.ClassLike;
 import org.truffleruby.core.klass.ClassNodes;
 import org.truffleruby.core.klass.ConcreteClass;
 import org.truffleruby.core.klass.RubyClass;
+import org.truffleruby.core.klass.WithSingletonClass;
 import org.truffleruby.language.ImmutableRubyObject;
 import org.truffleruby.language.Nil;
 import org.truffleruby.language.RubyDynamicObject;
@@ -104,7 +105,8 @@ public abstract class VirtualSingletonClassNode extends RubySourceNode {
 
     @Specialization(guards = "!isRubyClass(object)", replaces = "singletonClassInstanceCached")
     protected ClassLike singletonClassInstanceUncached(RubyDynamicObject object) {
-        return new ConcreteClass(getSingletonClassForInstance(getContext(), object));
+        // We should cache this
+        return new WithSingletonClass(getContext(), this);
     }
 
     private RubyClass noSingletonClass() {
