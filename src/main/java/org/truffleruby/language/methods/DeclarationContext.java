@@ -94,7 +94,7 @@ public class DeclarationContext {
 
     // Must not return Frame as that could allocate a VirtualFrame due to merging the VirtualFrame and MaterializedFrame
     // branches, which results in a compiler error.
-    private static DeclarationContext lookupVisibility(Frame frame) {
+    public static DeclarationContext lookupVisibility(Frame frame) {
         final DeclarationContext declarationContext = RubyArguments.getDeclarationContext(frame);
         final Visibility visibility = declarationContext.visibility;
         if (visibility != null) {

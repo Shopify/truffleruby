@@ -133,7 +133,7 @@ public abstract class RubyDynamicObject extends DynamicObject {
             } else if (action instanceof WithSingletonClass) {
                 resultingModule = getSingletonClassForInstance(resultingModule, ((WithSingletonClass) action).context, this, ((WithSingletonClass) action).node);
             } else if (action instanceof WithMethod) {
-                resultingModule.addMethodConsiderNameVisibility(((WithMethod) action).context, ((WithMethod) action).method, ((WithMethod) action).visibility, ((WithMethod) action).node);
+                resultingModule.addMethodConsiderNameVisibility(((WithMethod) action).context, ((WithMethod) action).method.apply(resultingModule), ((WithMethod) action).visibility, ((WithMethod) action).node);
             } else {
                 throw new UnsupportedOperationException();
             }
@@ -172,8 +172,7 @@ public abstract class RubyDynamicObject extends DynamicObject {
 
     public void setMetaClass(ClassLike metaClass){
         //SharedObjects.assertPropagateSharing(this, metaClass.reify(this));
-        //this.metaClass = metaClass;
-        throw new UnsupportedOperationException();
+        this.metaClass = metaClass;
     }
 
     public final RubyClass getLogicalClass() {

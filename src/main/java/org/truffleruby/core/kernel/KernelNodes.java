@@ -16,6 +16,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.oracle.truffle.api.dsl.Fallback;
 import com.oracle.truffle.api.frame.Frame;
@@ -836,7 +838,8 @@ public abstract class KernelNodes {
     @NodeChild(value = "block", type = RubyNode.class)
     public abstract static class DefineMethodNode extends CoreMethodNode {
 
-        @Child VirtualSingletonClassNode singletonClassNode = VirtualSingletonClassNode.create();
+        @Child VirtualSingletonClassNode virtualSingletonClassNode = VirtualSingletonClassNode.create();
+        @Child SingletonClassNode singletonClassNode = SingletonClassNode.create();
 
         @Child private ReadCallerFrameNode readCallerFrame = ReadCallerFrameNode.create();
 
@@ -854,13 +857,13 @@ public abstract class KernelNodes {
         @Specialization
         protected RubySymbol defineMethodBlock(
                 VirtualFrame frame, Object object, String name, NotProvided proc, RubyProc block) {
-            return defineMethod(object, singletonClassNode.executeSingletonClass(object), name, block, readCallerFrame.execute(frame));
+            return defineMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, block, readCallerFrame.execute(frame));
         }
 
         @Specialization
         protected RubySymbol defineMethodProc(
                 VirtualFrame frame, Object object, String name, RubyProc proc, Nil block) {
-            return defineMethod(object, singletonClassNode.executeSingletonClass(object), name, proc, readCallerFrame.execute(frame));
+            return defineMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, proc, readCallerFrame.execute(frame));
         }
 
         @TruffleBoundary
@@ -869,7 +872,7 @@ public abstract class KernelNodes {
                                                 @Cached CanBindMethodToModuleNode canBindMethodToModuleNode) {
             final InternalMethod method = methodObject.method;
 
-            if (!canBindMethodToModuleNode.executeCanBindMethodToModule(method, singletonClassNode.executeSingletonClass(object).reify(object))) {
+            if (!canBindMethodToModuleNode.executeCanBindMethodToModule(method, singletonClassNode.executeSingletonClass(object))) {
                 final RubyModule declaringModule = method.getDeclaringModule();
                 if (RubyGuards.isSingletonClass(declaringModule)) {
                     throw new RaiseException(getContext(), coreExceptions().typeError(
@@ -882,7 +885,7 @@ public abstract class KernelNodes {
                 }
             }
 
-            singletonClassNode.executeSingletonClass(object).reify(object).fields.addMethod(getContext(), this, method.withName(name));
+            singletonClassNode.executeSingletonClass(object).fields.addMethod(getContext(), this, method.withName(name));
             return getSymbol(name);
         }
 
@@ -890,14 +893,14 @@ public abstract class KernelNodes {
         protected RubySymbol defineMethod(
                 VirtualFrame frame, Object object, String name, RubyUnboundMethod method, Nil block) {
             final MaterializedFrame callerFrame = readCallerFrame.execute(frame);
-            return defineMethodInternal(singletonClassNode.executeSingletonClass(object), name, method, callerFrame);
+            return defineMethodInternal(virtualSingletonClassNode.executeSingletonClass(object), name, method, callerFrame);
         }
 
         @TruffleBoundary
         private RubySymbol defineMethodInternal(Object object, String name, RubyUnboundMethod method,
                                                 final MaterializedFrame callerFrame) {
             final InternalMethod internalMethod = method.method;
-            if (!ModuleOperations.canBindMethodTo(internalMethod, singletonClassNode.executeSingletonClass(object).reify(object))) {
+            if (!ModuleOperations.canBindMethodTo(internalMethod, singletonClassNode.executeSingletonClass(object))) {
                 final RubyModule declaringModule = internalMethod.getDeclaringModule();
                 if (RubyGuards.isSingletonClass(declaringModule)) {
                     throw new RaiseException(getContext(), coreExceptions().typeError(
@@ -913,7 +916,7 @@ public abstract class KernelNodes {
                 }
             }
 
-            return addMethod(object, singletonClassNode.executeSingletonClass(object), name, internalMethod, callerFrame);
+            return addMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, (module) -> internalMethod.withName(name), callerFrame);
         }
 
         @TruffleBoundary
@@ -921,7 +924,7 @@ public abstract class KernelNodes {
                                         MaterializedFrame callerFrame) {
             final RootCallTarget callTargetForLambda = proc.callTargets.getCallTargetForLambda();
             final RubyLambdaRootNode rootNode = RubyLambdaRootNode.of(callTargetForLambda);
-            final SharedMethodInfo info = proc.getSharedMethodInfo().forDefineMethod(module.reify(object), name, proc);
+            final SharedMethodInfo info = proc.getSharedMethodInfo().forDefineMethod(name, proc);
             final RubyNode body = rootNode.copyBody();
             final RubyNode newBody = new ModuleNodes.DefineMethodNode.CallMethodWithLambdaBody(isSingleContext() ? proc : null,
                     callTargetForLambda, body);
@@ -929,33 +932,47 @@ public abstract class KernelNodes {
             final RubyLambdaRootNode newRootNode = rootNode.copyRootNode(info, newBody);
             final RootCallTarget newCallTarget = newRootNode.getCallTarget();
 
-            final InternalMethod method = InternalMethod.fromProc(
+            final Function<RubyModule, InternalMethod> method = (resultingModule) -> InternalMethod.fromProc(
                     getContext(),
                     info,
                     proc.declarationContext,
                     name,
-                    module.reify(object),
+                    resultingModule,
                     Visibility.PUBLIC,
                     proc,
-                    newCallTarget);
+                    newCallTarget).withName(name);
+
             return addMethod(object, module, name, method, callerFrame);
         }
 
         @TruffleBoundary
-        private RubySymbol addMethod(Object object, ClassLike module, String name, InternalMethod method,
+        private RubySymbol addMethod(Object object, ClassLike module, String name, Function<RubyModule, InternalMethod> method,
                                      MaterializedFrame callerFrame) {
-            method = method.withName(name);
+            final Visibility visibility = findVisibilityCheckSelfAndDefaultDefinee(callerFrame);
 
+            final ClassLike newModule = new WithMethod(module, method, getContext(), visibility, this);
+            ((RubyDynamicObject) object).setMetaClass(newModule);
 
-            final Visibility visibility = DeclarationContext
-                    .findVisibilityCheckSelfAndDefaultDefinee(module.reify(object), callerFrame);
+            //module.reify(object).addMethodConsiderNameVisibility(getContext(), method, visibility, this);
 
-            //final ClassLike newModule = new WithMethod(module, method, getContext(), visibility, this);
-            //((RubyDynamicObject) object).setMetaClass(newModule);
+            return getSymbol(name);
+        }
 
-            module.reify(object).addMethodConsiderNameVisibility(getContext(), method, visibility, this);
-
-            return getSymbol(method.getName());
+        private static Visibility findVisibilityCheckSelfAndDefaultDefinee(Frame callerFrame) {
+            final DeclarationContext declarationContext = DeclarationContext.lookupVisibility(callerFrame);
+            if (declarationContext == DeclarationContext.NONE) {
+                // For Java core methods, e.g. method(:attr_accessor).to_proc as in spec/truffle/always_inlined_spec.rb
+                // The generated Proc uses the DeclarationContext from Module#attr_accessor and knows nothing about the
+                // lexical scope surrounding the Proc#call.
+                // Maybe we should go to the 2nd caller in this case, skipping the SetReceiverNode CallTarget.
+                return Visibility.PUBLIC;
+            /*} else if (RubyArguments.getSelf(callerFrame) != module) {
+                return Visibility.PUBLIC;*/
+            } else /*if (declarationContext.getModuleToDefineMethods() != module) */ {
+                return Visibility.PUBLIC;
+            }/* else {
+                return declarationContext.visibility;
+            }*/
         }
 
     }

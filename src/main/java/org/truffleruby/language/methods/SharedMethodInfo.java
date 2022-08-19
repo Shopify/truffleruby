@@ -76,6 +76,18 @@ public final class SharedMethodInfo {
                 proc.argumentDescriptors);
     }
 
+    public SharedMethodInfo forDefineMethod(String methodName, RubyProc proc) {
+        return new SharedMethodInfo(
+                sourceSection,
+                staticLexicalScope,
+                proc.arity,
+                methodName,
+                0, // no longer a block
+                "<method on virtual class>",
+                null,
+                proc.argumentDescriptors);
+    }
+
     public SharedMethodInfo convertMethodMissingToMethod(RubyModule declaringModule, String methodName) {
         return new SharedMethodInfo(
                 sourceSection,
