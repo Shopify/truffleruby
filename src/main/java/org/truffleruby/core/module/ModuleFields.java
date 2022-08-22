@@ -539,7 +539,7 @@ public final class ModuleFields extends ModuleChain implements ObjectGraphNode {
             final RubySymbol methodSymbol = context.getLanguageSlow().getSymbol(method.getName());
             if (RubyGuards.isSingletonClass(rubyModule)) {
                 RubyDynamicObject receiver = ((RubyClass) rubyModule).attached;
-                RubyContext.send(currentNode, receiver, "singleton_method_added", methodSymbol);
+//                RubyContext.send(currentNode, receiver, "singleton_method_added", methodSymbol);
             } else {
                 RubyContext.send(currentNode, rubyModule, "method_added", methodSymbol);
             }
@@ -796,7 +796,7 @@ public final class ModuleFields extends ModuleChain implements ObjectGraphNode {
     }
 
     public void newHierarchyVersion() {
-        hierarchyUnmodifiedAssumption.invalidate(getName());
+        hierarchyUnmodifiedAssumption.invalidate(/*getName()*/);
 
         if (isRefinement()) {
             getRefinedModule().fields.invalidateBuiltinsAssumptions();

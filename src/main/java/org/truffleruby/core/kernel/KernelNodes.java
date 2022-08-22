@@ -826,7 +826,7 @@ public abstract class KernelNodes {
     }
 
     @CoreMethod(
-            names = "define_singleton_method",
+            names = "x_define_singleton_method",
             needsBlock = true,
             required = 1,
             optional = 1,

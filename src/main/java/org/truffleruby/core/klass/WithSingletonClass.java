@@ -2,8 +2,6 @@ package org.truffleruby.core.klass;
 
 import com.oracle.truffle.api.nodes.Node;
 import org.truffleruby.RubyContext;
-import org.truffleruby.language.RubyDynamicObject;
-import org.truffleruby.language.objects.SingletonClassNode;
 
 public class WithSingletonClass implements ClassLike {
 
@@ -11,9 +9,12 @@ public class WithSingletonClass implements ClassLike {
     public final RubyContext context;
     public final Node node;
 
-    public WithSingletonClass(RubyContext context, Node node){
+    public final RubyClass logicalClass;
+
+    public WithSingletonClass(RubyContext context, Node node, RubyClass logicalClass){
         this.context = context;
         this.node = node;
+        this.logicalClass = logicalClass;
     }
 
     @Override

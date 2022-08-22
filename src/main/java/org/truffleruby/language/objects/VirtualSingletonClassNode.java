@@ -93,7 +93,7 @@ public abstract class VirtualSingletonClassNode extends RubySourceNode {
         return new ConcreteClass(ClassNodes.getSingletonClass(getContext(), rubyClass));
     }
 
-    @Specialization(
+    /*@Specialization(
             // no need to guard on the context, the RubyDynamicObject is context-specific
             guards = { "object == cachedObject", "!isRubyClass(cachedObject)" },
             limit = "getIdentityCacheContextLimit()")
@@ -101,12 +101,13 @@ public abstract class VirtualSingletonClassNode extends RubySourceNode {
             @Cached("object") RubyDynamicObject cachedObject,
             @Cached("getSingletonClassForInstance(getContext(), object)") RubyClass cachedSingletonClass) {
         return new ConcreteClass(cachedSingletonClass);
-    }
+    }*/
 
-    @Specialization(guards = "!isRubyClass(object)", replaces = "singletonClassInstanceCached")
+    @Specialization(guards = "!isRubyClass(object)"/*, replaces = "singletonClassInstanceCached"*/)
     protected ClassLike singletonClassInstanceUncached(RubyDynamicObject object) {
         // We should cache this
-        return new WithSingletonClass(getContext(), this);
+        assert object.metaClass instanceof ConcreteClass;
+        return new WithSingletonClass(getContext(), this, ((ConcreteClass) object.metaClass).getConcrete().nonSingletonClass);
     }
 
     private RubyClass noSingletonClass() {

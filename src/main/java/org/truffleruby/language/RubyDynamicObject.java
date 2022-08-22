@@ -79,7 +79,7 @@ public abstract class RubyDynamicObject extends DynamicObject {
 
     private static final int FROZEN = 1;
 
-    private ClassLike metaClass;
+    public ClassLike metaClass;
 
     public RubyDynamicObject(RubyClass metaClass, Shape shape) {
         super(shape);
@@ -131,7 +131,7 @@ public abstract class RubyDynamicObject extends DynamicObject {
             if (action instanceof ConcreteClass) {
                 resultingModule = ((ConcreteClass) action).getConcrete();
             } else if (action instanceof WithSingletonClass) {
-                resultingModule = getSingletonClassForInstance(resultingModule, ((WithSingletonClass) action).context, this, ((WithSingletonClass) action).node);
+                resultingModule = getSingletonClassForInstance(((WithSingletonClass) action).logicalClass, ((WithSingletonClass) action).context, this, ((WithSingletonClass) action).node);
             } else if (action instanceof WithMethod) {
                 resultingModule.addMethodConsiderNameVisibility(((WithMethod) action).context, ((WithMethod) action).method.apply(resultingModule), ((WithMethod) action).visibility, ((WithMethod) action).node);
             } else {
@@ -182,8 +182,9 @@ public abstract class RubyDynamicObject extends DynamicObject {
     @Override
     @TruffleBoundary
     public String toString() {
-        final String className = getLogicalClass().fields.getName();
-        return StringUtils.format("%s@%x<%s>", getClass().getSimpleName(), System.identityHashCode(this), className);
+        /*final String className = getLogicalClass().fields.getName();
+        return StringUtils.format("%s@%x<%s>", getClass().getSimpleName(), System.identityHashCode(this), className);*/
+        return "<an object>";
     }
 
     // region RubyLibrary messages
