@@ -23,7 +23,7 @@ import com.oracle.truffle.api.profiles.ConditionProfile;
 import org.truffleruby.core.cast.ToSymbolNode;
 import org.truffleruby.core.exception.ExceptionOperations.ExceptionFormatter;
 import org.truffleruby.core.hash.RubyHash;
-import org.truffleruby.core.klass.RubyClass;
+import org.truffleruby.core.klass.ClassLike;
 import org.truffleruby.core.symbol.RubySymbol;
 import org.truffleruby.language.FrameAndVariablesSendingNode;
 import org.truffleruby.language.RubyGuards;
@@ -41,6 +41,8 @@ import org.truffleruby.language.methods.LookupMethodNode;
 import org.truffleruby.language.methods.LookupMethodNodeGen;
 import org.truffleruby.language.objects.MetaClassNode;
 import org.truffleruby.language.objects.MetaClassNodeGen;
+import org.truffleruby.language.objects.VirtualizedMetaClassNode;
+import org.truffleruby.language.objects.VirtualizedMetaClassNodeGen;
 import org.truffleruby.options.Options;
 
 public class DispatchNode extends FrameAndVariablesSendingNode {
@@ -77,6 +79,7 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
 
     public final DispatchConfiguration config;
 
+    @Child protected VirtualizedMetaClassNode virtualizedMetaclassNode;
     @Child protected MetaClassNode metaclassNode;
     @Child protected LookupMethodNode methodLookup;
     @Child protected CallInternalMethodNode callNode;
@@ -89,12 +92,12 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
 
     protected DispatchNode(
             DispatchConfiguration config,
-            MetaClassNode metaclassNode,
+            VirtualizedMetaClassNode virtualizedMetaclassNode,
             LookupMethodNode methodLookup,
             CallInternalMethodNode callNode,
             ConditionProfile methodMissing) {
         this.config = config;
-        this.metaclassNode = metaclassNode;
+        this.virtualizedMetaclassNode = virtualizedMetaclassNode;
         this.methodLookup = methodLookup;
         this.callNode = callNode;
         this.methodMissing = methodMissing;
@@ -103,7 +106,7 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
     protected DispatchNode(DispatchConfiguration config) {
         this(
                 config,
-                MetaClassNode.create(),
+                VirtualizedMetaClassNode.create(),
                 LookupMethodNode.create(),
                 CallInternalMethodNode.create(),
                 ConditionProfile.create());
@@ -283,19 +286,35 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
     public Object dispatch(Frame frame, Object receiver, String methodName, Object[] rubyArgs,
             LiteralCallNode literalCallNode) {
         return dispatchInternal(frame, receiver, methodName, rubyArgs, literalCallNode,
-                metaclassNode, methodLookup, methodMissing, callNode);
+                virtualizedMetaclassNode, methodLookup, methodMissing, callNode);
     }
 
     protected final Object dispatchInternal(Frame frame, Object receiver, String methodName, Object[] rubyArgs,
             LiteralCallNode literalCallNode,
-            MetaClassNode metaClassNode,
+            VirtualizedMetaClassNode metaClassNode,
             LookupMethodNode lookupMethodNode,
             ConditionProfile methodMissingProfile,
             CallInternalMethodNode callNode) {
         assert RubyArguments.getSelf(rubyArgs) == receiver;
 
-        final RubyClass metaclass = metaClassNode.execute(receiver);
-        final InternalMethod method = lookupMethodNode.execute(frame, metaclass, methodName, config);
+//        todo this is where we should start differentiating between classlikes and reified metaclasses
+//        todo disable the breakpoint until you print a few 14s otherwise it takes forever to instantiate the VM
+
+        InternalMethod method = null;
+
+        /*if (receiver instanceof RubyDynamicObject && ((RubyDynamicObject) receiver).metaClass instanceof WithMethod){
+            InternalMethod virtualMethod = ((WithMethod) ((RubyDynamicObject) receiver).metaClass).method.apply(null);
+            if (virtualMethod.getName().equals(methodName)){
+                method = virtualMethod;
+            }
+        }
+        if (method == null){*/
+            final ClassLike metaclass = metaClassNode.execute(receiver);
+
+            method = lookupMethodNode.execute(frame, metaclass, methodName, config);
+        //}
+
+        // At this point - we have a method - nothing should change after here!
 
         if (methodMissingProfile.profile(method == null || method.isUndefined())) {
             switch (config.missingBehavior) {
@@ -434,7 +453,7 @@ public class DispatchNode extends FrameAndVariablesSendingNode {
         public Object dispatch(Frame frame, Object receiver, String methodName, Object[] rubyArgs,
                 LiteralCallNode literalCallNode) {
             return dispatchInternal(frame, receiver, methodName, rubyArgs, literalCallNode,
-                    MetaClassNodeGen.getUncached(),
+                    VirtualizedMetaClassNodeGen.getUncached(),
                     LookupMethodNodeGen.getUncached(),
                     ConditionProfile.getUncached(),
                     CallInternalMethodNodeGen.getUncached());

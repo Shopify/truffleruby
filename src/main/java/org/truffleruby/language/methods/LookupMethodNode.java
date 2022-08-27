@@ -11,7 +11,9 @@ package org.truffleruby.language.methods;
 
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
 import org.truffleruby.RubyContext;
+import org.truffleruby.core.klass.ClassLike;
 import org.truffleruby.core.klass.RubyClass;
+import org.truffleruby.core.klass.WithMethod;
 import org.truffleruby.core.module.MethodLookupResult;
 import org.truffleruby.core.module.ModuleFields;
 import org.truffleruby.core.module.ModuleOperations;
@@ -39,7 +41,10 @@ public abstract class LookupMethodNode extends RubyBaseNode {
         return LookupMethodNodeGen.create();
     }
 
-    public abstract InternalMethod execute(Frame frame, RubyClass metaClass, String name, DispatchConfiguration config);
+    public abstract InternalMethod execute(Frame frame, Object metaClass, String name, DispatchConfiguration config);
+
+    //todo add a specialization for looking things up on WithMethod classlikes before deferring to smth else
+
 
     @Specialization(
             // no need to guard on the context, the metaClass is context-specific
@@ -128,6 +133,19 @@ public abstract class LookupMethodNode extends RubyBaseNode {
 
         return method;
     }
+//    @Specialization
+//    protected InternalMethod lookupClassLikeMethodUncached(
+//            Frame frame, WithMethod metaClass, String name, DispatchConfiguration config) {
+//
+//        if (metaClass.method.apply(null).getName().equals(name)){
+//            return metaClass.method.apply(null);
+//        }
+//        else{
+//
+//        }
+//
+//    }
+
 
     protected static MethodLookupResult lookupCached(RubyContext context, Frame callingFrame,
             RubyClass metaClass, String name, DispatchConfiguration config) {
