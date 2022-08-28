@@ -12,6 +12,7 @@ package org.truffleruby.language.methods;
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.klass.ClassLike;
+import org.truffleruby.core.klass.ConcreteClass;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.klass.WithMethod;
 import org.truffleruby.core.module.MethodLookupResult;
@@ -45,6 +46,12 @@ public abstract class LookupMethodNode extends RubyBaseNode {
 
     //todo add a specialization for looking things up on WithMethod classlikes before deferring to smth else
 
+
+    @Specialization
+    protected InternalMethod lookupConcrete(
+            Frame frame, ConcreteClass metaClass, String name, DispatchConfiguration config) {
+        return execute(frame, metaClass.getConcrete(), name, config);
+    }
 
     @Specialization(
             // no need to guard on the context, the metaClass is context-specific
