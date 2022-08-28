@@ -121,12 +121,12 @@ public abstract class VirtualizedMetaClassNode extends RubyBaseNode {
     }
 
     // Foreign object
-    /*@InliningCutoff
+    @InliningCutoff
     @Specialization(guards = "isForeignObject(object)")
     protected ClassLike metaClassForeign(Object object,
             @Cached ForeignClassNode foreignClassNode) {
-        return foreignClassNode.execute(object);
-    }*/
+        return new ConcreteClass(foreignClassNode.execute(object));
+    }
 
     protected int getCacheLimit() {
         return getLanguage().options.CLASS_CACHE;
