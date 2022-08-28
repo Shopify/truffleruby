@@ -166,6 +166,8 @@ public class Options {
     public final boolean CEXTS_TO_NATIVE_STATS;
     /** --cexts-to-native-count=CEXTS_TO_NATIVE_STATS */
     public final boolean CEXTS_TO_NATIVE_COUNT;
+    /** --backtraces-to-native=false */
+    public final boolean BACKTRACE_ON_TO_NATIVE;
     /** --basic-ops-log-rewrite=false */
     public final boolean BASICOPS_LOG_REWRITE;
     /** --array-small=3 */
@@ -186,8 +188,6 @@ public class Options {
     public final boolean NEVER_SPLIT_HONOR;
     /** --inline-needs-caller-frame=INLINE_DEFAULT */
     public final boolean INLINE_NEEDS_CALLER_FRAME;
-    /** --yield-always-clone=CLONE_DEFAULT */
-    public final boolean YIELD_ALWAYS_CLONE;
     /** --yield-always-inline=INLINE_DEFAULT */
     public final boolean YIELD_ALWAYS_INLINE;
     /** --method-missing-always-clone=CLONE_DEFAULT */
@@ -281,6 +281,7 @@ public class Options {
         PRINT_INTERNED_TSTRING_STATS = options.get(OptionsCatalog.PRINT_INTERNED_TSTRING_STATS_KEY);
         CEXTS_TO_NATIVE_STATS = options.get(OptionsCatalog.CEXTS_TO_NATIVE_STATS_KEY);
         CEXTS_TO_NATIVE_COUNT = options.hasBeenSet(OptionsCatalog.CEXTS_TO_NATIVE_COUNT_KEY) ? options.get(OptionsCatalog.CEXTS_TO_NATIVE_COUNT_KEY) : CEXTS_TO_NATIVE_STATS;
+        BACKTRACE_ON_TO_NATIVE = options.get(OptionsCatalog.BACKTRACE_ON_TO_NATIVE_KEY);
         BASICOPS_LOG_REWRITE = options.get(OptionsCatalog.BASICOPS_LOG_REWRITE_KEY);
         ARRAY_SMALL = options.get(OptionsCatalog.ARRAY_SMALL_KEY);
         CEXTS_MARKING_CACHE = options.get(OptionsCatalog.CEXTS_MARKING_CACHE_KEY);
@@ -291,7 +292,6 @@ public class Options {
         ALWAYS_SPLIT_HONOR = options.hasBeenSet(OptionsCatalog.ALWAYS_SPLIT_HONOR_KEY) ? options.get(OptionsCatalog.ALWAYS_SPLIT_HONOR_KEY) : CLONE_DEFAULT;
         NEVER_SPLIT_HONOR = options.get(OptionsCatalog.NEVER_SPLIT_HONOR_KEY);
         INLINE_NEEDS_CALLER_FRAME = options.hasBeenSet(OptionsCatalog.INLINE_NEEDS_CALLER_FRAME_KEY) ? options.get(OptionsCatalog.INLINE_NEEDS_CALLER_FRAME_KEY) : INLINE_DEFAULT;
-        YIELD_ALWAYS_CLONE = options.hasBeenSet(OptionsCatalog.YIELD_ALWAYS_CLONE_KEY) ? options.get(OptionsCatalog.YIELD_ALWAYS_CLONE_KEY) : CLONE_DEFAULT;
         YIELD_ALWAYS_INLINE = options.hasBeenSet(OptionsCatalog.YIELD_ALWAYS_INLINE_KEY) ? options.get(OptionsCatalog.YIELD_ALWAYS_INLINE_KEY) : INLINE_DEFAULT;
         METHODMISSING_ALWAYS_CLONE = options.hasBeenSet(OptionsCatalog.METHODMISSING_ALWAYS_CLONE_KEY) ? options.get(OptionsCatalog.METHODMISSING_ALWAYS_CLONE_KEY) : CLONE_DEFAULT;
         METHODMISSING_ALWAYS_INLINE = options.hasBeenSet(OptionsCatalog.METHODMISSING_ALWAYS_INLINE_KEY) ? options.get(OptionsCatalog.METHODMISSING_ALWAYS_INLINE_KEY) : INLINE_DEFAULT;
@@ -448,6 +448,8 @@ public class Options {
                 return CEXTS_TO_NATIVE_STATS;
             case "ruby.cexts-to-native-count":
                 return CEXTS_TO_NATIVE_COUNT;
+            case "ruby.backtraces-to-native":
+                return BACKTRACE_ON_TO_NATIVE;
             case "ruby.basic-ops-log-rewrite":
                 return BASICOPS_LOG_REWRITE;
             case "ruby.array-small":
@@ -468,8 +470,6 @@ public class Options {
                 return NEVER_SPLIT_HONOR;
             case "ruby.inline-needs-caller-frame":
                 return INLINE_NEEDS_CALLER_FRAME;
-            case "ruby.yield-always-clone":
-                return YIELD_ALWAYS_CLONE;
             case "ruby.yield-always-inline":
                 return YIELD_ALWAYS_INLINE;
             case "ruby.method-missing-always-clone":

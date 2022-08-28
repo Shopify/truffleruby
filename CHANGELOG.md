@@ -13,6 +13,7 @@ Bug fixes:
 * Update `Process` methods to use `module_function` (@bjfish).
 * Fix `File::Stat`'s `#executable?` and `#executable_real?` predicates that unconditionally returned `true` for a superuser (#2690, @andrykonchin).
 * The `strip` option `--keep-section=.llvmbc` is not supported on macOS (#2697, @eregon).
+* Disallow the marshaling of polyglot exceptions since we can't properly reconstruct them (@nirvdrum).
 
 Compatibility:
 
@@ -22,12 +23,19 @@ Compatibility:
 * Range literals of integers are now created at parse time like in CRuby (#2622, @aardvark179).
 * Fix `IO.pipe` - allow overriding `IO.new` that is used to create new pipes (#2692, @andykonchin).
 * Fix exception message when there are missing or extra keyword arguments - it contains all the missing/extra keywords now (#1522, @andrykonchin).
+* Always terminate native strings with enough `\0` bytes (#2704, @eregon).
+* Support `#dup` and `#clone` on foreign strings (@eregon).
+* Fix `Regexp.new` to coerce non-String arguments (#2705, @andrykonchin).
+* Fix `Kernel#sprintf` formatting for `%c` when used non-ASCII encoding (#2369, @andrykonchin).
+* Fix `Kernel#sprintf` argument casting for `%c` (@andrykonchin).
+* Implement the `rb_enc_strlen` function for use by native extensions (@nirvdrum).
 
 Performance:
 
 * Replace a call of `-"string"` with frozen string literal at parse time (@andrykonchin).
 * Report polymorphism inside `Hash#[]` to recover performance (@aardvark179).
 * Improved interpreter performance by optimizing for better host inlining (@eregon).
+* Use `poll` instead of `select` for simple IO waiting to reduce overheads (#1584, @aardvark179).
 
 Changes:
 
