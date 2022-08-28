@@ -854,13 +854,13 @@ public abstract class KernelNodes {
         @Specialization
         protected RubySymbol defineMethodBlock(
                 VirtualFrame frame, Object object, String name, NotProvided proc, RubyProc block) {
-            return defineMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, block, readCallerFrame.execute(frame));
+            return defineMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, block/*, , readCallerFrame.execute(frame)*/);
         }
 
         @Specialization
         protected RubySymbol defineMethodProc(
                 VirtualFrame frame, Object object, String name, RubyProc proc, Nil block) {
-            return defineMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, proc, readCallerFrame.execute(frame));
+            return defineMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, proc/*, readCallerFrame.execute(frame)*/);
         }
 
         @TruffleBoundary
@@ -916,9 +916,9 @@ public abstract class KernelNodes {
             return addMethod(object, virtualSingletonClassNode.executeSingletonClass(object), name, (module) -> internalMethod.withName(name), callerFrame);
         }*/
 
-        private RubySymbol defineMethod(Object object, ClassLike module, String name, RubyProc proc,
-                                        MaterializedFrame callerFrame) {
-            ClassLike newModule = getVirtualModuleWouldBeCached(module, name, proc, callerFrame);
+        private RubySymbol defineMethod(Object object, ClassLike module, String name, RubyProc proc/*,
+                                        MaterializedFrame callerFrame*/) {
+            ClassLike newModule = getVirtualModuleWouldBeCached(module, name, proc/*, callerFrame*/);
 
             ((RubyDynamicObject) object).setMetaClass(newModule);
 
@@ -927,8 +927,8 @@ public abstract class KernelNodes {
 
 
         @TruffleBoundary
-        private ClassLike getVirtualModuleWouldBeCached(ClassLike module, String name, RubyProc proc,
-                                                        MaterializedFrame callerFrame) {
+        private ClassLike getVirtualModuleWouldBeCached(ClassLike module, String name, RubyProc proc/*,
+                                                        MaterializedFrame callerFrame*/) {
             final RootCallTarget callTargetForLambda = proc.callTargets.getCallTargetForLambda();
             final RubyLambdaRootNode rootNode = RubyLambdaRootNode.of(callTargetForLambda);
             final SharedMethodInfo info = proc.getSharedMethodInfo().forDefineMethod(name, proc);
@@ -949,7 +949,7 @@ public abstract class KernelNodes {
                     proc,
                     newCallTarget).withName(name);
 
-            final Visibility visibility = findVisibilityCheckSelfAndDefaultDefinee(callerFrame);
+            final Visibility visibility = Visibility.PUBLIC; // findVisibilityCheckSelfAndDefaultDefinee(callerFrame);
 
             return new WithMethod(module, method, getContext(), visibility, this);
         }
