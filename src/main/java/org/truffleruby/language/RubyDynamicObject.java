@@ -20,6 +20,7 @@ import org.truffleruby.core.cast.IntegerCastNode;
 import org.truffleruby.core.cast.LongCastNode;
 import org.truffleruby.core.cast.ToLongNode;
 import org.truffleruby.core.kernel.KernelNodes;
+import org.truffleruby.core.klass.ResolveClassNode;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.range.RubyObjectRange;
 import org.truffleruby.core.string.RubyString;
@@ -79,7 +80,7 @@ public abstract class RubyDynamicObject extends DynamicObject {
     }
 
     public final RubyClass getMetaClass() {
-        return metaClass;
+        return ResolveClassNode.getUncached().resolveMetaClass(metaClass);
     }
 
     public void setMetaClass(RubyClass metaClass) {
@@ -88,7 +89,7 @@ public abstract class RubyDynamicObject extends DynamicObject {
     }
 
     public final RubyClass getLogicalClass() {
-        return metaClass.nonSingletonClass;
+        return ResolveClassNode.getUncached().resolveLogicalClass(metaClass);
     }
 
     @Override
