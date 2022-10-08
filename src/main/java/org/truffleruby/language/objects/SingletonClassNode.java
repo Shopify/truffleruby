@@ -12,6 +12,7 @@ package org.truffleruby.language.objects;
 import com.oracle.truffle.api.dsl.GenerateUncached;
 import org.truffleruby.RubyContext;
 import org.truffleruby.core.klass.ClassNodes;
+import org.truffleruby.core.klass.ResolveClassNode;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.language.ImmutableRubyObject;
 import org.truffleruby.language.Nil;
@@ -117,7 +118,7 @@ public abstract class SingletonClassNode extends RubySourceNode {
     @TruffleBoundary
     protected RubyClass getSingletonClassForInstance(RubyContext context, RubyDynamicObject object) {
         synchronized (object) {
-            RubyClass metaClass = object.getMetaClass();
+            RubyClass metaClass = ResolveClassNode.getUncached().resolveMetaClass(object.getUnresolvedClass());
             if (metaClass.isSingleton) {
                 return metaClass;
             }

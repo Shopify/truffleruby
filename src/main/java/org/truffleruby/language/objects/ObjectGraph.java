@@ -130,8 +130,7 @@ public abstract class ObjectGraph {
     public static Set<Object> getAdjacentObjects(RubyDynamicObject object) {
         final Set<Object> reachable = newObjectSet();
 
-        reachable.add(object.getLogicalClass());
-        reachable.add(object.getMetaClass());
+        reachable.add(object.getUnresolvedClass());
 
         if (object instanceof ObjectGraphNode) {
             ((ObjectGraphNode) object).getAdjacentObjects(reachable);

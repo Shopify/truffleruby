@@ -13,6 +13,7 @@ import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.TypeSystemReference;
 import org.truffleruby.core.encoding.RubyEncoding;
+import org.truffleruby.core.klass.ResolveClassNode;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.numeric.RubyBignum;
 import org.truffleruby.core.range.RubyIntOrLongRange;
@@ -102,8 +103,9 @@ public abstract class LogicalClassNode extends RubyBaseNode {
     }
 
     @Specialization
-    protected RubyClass logicalClassObject(RubyDynamicObject object) {
-        return object.getLogicalClass();
+    protected RubyClass logicalClassObject(RubyDynamicObject object,
+                                           @Cached ResolveClassNode resolveClassNode) {
+        return resolveClassNode.resolveLogicalClass(object.getUnresolvedClass());
     }
 
     @InliningCutoff

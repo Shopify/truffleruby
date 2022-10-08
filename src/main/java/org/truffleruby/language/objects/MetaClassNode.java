@@ -12,6 +12,7 @@ package org.truffleruby.language.objects;
 import com.oracle.truffle.api.HostCompilerDirectives.InliningCutoff;
 import com.oracle.truffle.api.dsl.TypeSystemReference;
 import org.truffleruby.core.encoding.RubyEncoding;
+import org.truffleruby.core.klass.ResolveClassNode;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.numeric.RubyBignum;
 import org.truffleruby.core.range.RubyIntOrLongRange;
@@ -115,8 +116,9 @@ public abstract class MetaClassNode extends RubyBaseNode {
     }
 
     @Specialization(replaces = "singletonClassCached")
-    protected RubyClass metaClassObject(RubyDynamicObject object) {
-        return object.getMetaClass();
+    protected RubyClass metaClassObject(RubyDynamicObject object,
+                                        @Cached ResolveClassNode resolveClassNode) {
+        return resolveClassNode.resolveMetaClass(object.getUnresolvedClass());
     }
 
     // Foreign object

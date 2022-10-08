@@ -49,8 +49,8 @@ public abstract class ClassNodes {
     public static RubyClass createClassClassAndBootClasses(RubyLanguage language) {
         final RubyClass rubyClass = new RubyClass(language, language.classShape);
 
-        assert rubyClass.getLogicalClass() == rubyClass;
-        assert rubyClass.getMetaClass() == rubyClass;
+        assert rubyClass.getUnresolvedClass() == rubyClass;
+        assert rubyClass.nonSingletonClass == rubyClass;
 
         return rubyClass;
     }
@@ -155,7 +155,7 @@ public abstract class ClassNodes {
 
     private static RubyClass getLazyCreatedSingletonClass(RubyContext context, RubyClass rubyClass) {
         synchronized (rubyClass) {
-            RubyClass metaClass = rubyClass.getMetaClass();
+            RubyClass metaClass = ResolveClassNode.getUncached().resolveMetaClass(rubyClass.getUnresolvedClass());
             if (metaClass.isSingleton) {
                 return metaClass;
             }
@@ -186,7 +186,7 @@ public abstract class ClassNodes {
         SharedObjects.propagate(context.getLanguageSlow(), rubyClass, metaClass);
         rubyClass.setMetaClass(metaClass);
 
-        return rubyClass.getMetaClass();
+        return metaClass;
     }
 
     /** The same as {@link CoreLibrary#classClass} but available while executing the CoreLibrary constructor */

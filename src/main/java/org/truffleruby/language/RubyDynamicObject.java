@@ -79,6 +79,10 @@ public abstract class RubyDynamicObject extends DynamicObject {
         this.metaClass = (RubyClass) this;
     }
 
+    public RubyClass getUnresolvedClass() {
+        return metaClass;
+    }
+
     public final RubyClass getMetaClass() {
         return ResolveClassNode.getUncached().resolveMetaClass(metaClass);
     }

@@ -23,6 +23,7 @@ import org.truffleruby.core.array.RubyArray;
 import org.truffleruby.core.binding.RubyBinding;
 import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.exception.ExceptionOperations.ExceptionFormatter;
+import org.truffleruby.core.klass.ResolveClassNode;
 import org.truffleruby.core.klass.RubyClass;
 import org.truffleruby.core.module.ModuleOperations;
 import org.truffleruby.core.module.RubyModule;
@@ -75,7 +76,7 @@ public class CoreExceptions {
     @TruffleBoundary
     public void showExceptionIfDebug(RubyException rubyException, Backtrace backtrace) {
         if (context.getCoreLibrary().getDebug() == Boolean.TRUE) {
-            final RubyClass rubyClass = rubyException.getLogicalClass();
+            final RubyClass rubyClass = ResolveClassNode.getUncached().resolveLogicalClass(rubyException.getUnresolvedClass());
             final Object message = DispatchNode.getUncached().call(rubyException, "to_s");
             showExceptionIfDebug(rubyClass, message, backtrace);
         }
