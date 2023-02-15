@@ -58,6 +58,7 @@ import org.truffleruby.core.string.TStringConstants;
 import org.truffleruby.language.SourceIndexLength;
 import org.truffleruby.language.control.DeferredRaiseException;
 import org.truffleruby.language.control.RaiseException;
+import org.truffleruby.parser.MethodStubHolder;
 import org.truffleruby.parser.RubyDeferredWarnings;
 import org.truffleruby.parser.ast.AliasParseNode;
 import org.truffleruby.parser.ast.AndParseNode;
@@ -169,7 +170,10 @@ public class ParserSupport {
     // Is the parser current within a singleton (value is number of nested singletons)
     private int inSingleton;
 
-    // Is the parser currently within a method definition
+    // Is the parser currently within an argument list.
+    private boolean inArgDef;
+
+    // Is the parser currently within a method definition.
     private boolean inDefinition;
 
     // Is the parser currently within a class body.
@@ -1168,6 +1172,14 @@ public class ParserSupport {
         this.inSingleton = inSingle;
     }
 
+    public boolean isInArgDef() {
+        return inArgDef;
+    }
+
+    public void setInArgDef(boolean isInArgDef) {
+        this.inArgDef = isInArgDef;
+    }
+
     public boolean isInDef() {
         return inDefinition;
     }
@@ -1881,6 +1893,17 @@ public class ParserSupport {
 
     public SourceIndexLength extendedUntil(SourceIndexLength start, SourceIndexLength end) {
         return new SourceIndexLength(start.getCharIndex(), end.getCharEnd() - start.getCharIndex());
+    }
+
+    public void endless_method_name(TruffleString name) {
+        if (name.toJavaStringUncached().endsWith("=")) {
+            yyerror("setter method cannot be defined in an endless method definition");
+        }
+    }
+
+    public void restore_defun(RubyLexer lexer, MethodStubHolder stub) {
+        lexer.setCurrentArg(stub.currentArg());
+        popCurrentScope();
     }
 
 }

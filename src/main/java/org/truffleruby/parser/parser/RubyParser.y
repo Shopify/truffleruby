@@ -10,6 +10,7 @@ import org.truffleruby.core.encoding.RubyEncoding;
 import org.truffleruby.core.encoding.TStringUtils;
 import org.truffleruby.core.string.TStringConstants;
 import org.truffleruby.language.SourceIndexLength;
+import org.truffleruby.parser.MethodStubHolder;
 import org.truffleruby.parser.RubyDeferredWarnings;
 import org.truffleruby.parser.ast.ArgsParseNode;
 import org.truffleruby.parser.ast.ArgumentParseNode;
@@ -196,7 +197,8 @@ public class RubyParser {
 %type <Object> string_content
 %type <ParseNode> regexp_contents
 %type <ParseNode> words qwords word literal dsym cpath command_asgn command_call
-%type <NumericParseNode> numeric simple_numeric 
+%type <NumericParseNode> numeric simple_numeric
+%type <ParseNode> def_name defn_head defs_head
 %type <ParseNode> mrhs_arg
 %type <ParseNode> compstmt bodystmt stmts stmt expr arg primary command 
 %type <ParseNode> stmt_or_begin
@@ -482,6 +484,55 @@ command_asgn    : lhs '=' command_rhs {
                     value_expr(lexer, $5);
                     $$ = support.newOpAsgn(support.getPosition($1), $1, $2, $5, $3, $4);
                 }
+		| defn_head f_opt_paren_args '=' command {
+		    MethodStubHolder stub = $<MethodStubHolder>1;
+		    ParseNode body = support.makeNullNil($4);
+		    support.endless_method_name(stub.name());
+		    support.restore_defun(lexer, stub);
+
+                     $$ = new DefnParseNode(support.extendedUntil(support.getPosition($1), support.getPosition($4)), support.symbolID(stub.name()), (ArgsParseNode) $2, support.getCurrentScope(), body);
+			//endless_method_name(p, $<node>1, &@1);
+			//restore_defun(p, $<node>1->nd_defn);
+		    }
+//		| defn_head f_opt_paren_args '=' command modifier_rescue arg
+//		    {
+//			endless_method_name(p, $<node>1, &@1);
+//			restore_defun(p, $<node>1->nd_defn);
+//		    /*%%%*/
+//			$4 = rescued_expr(p, $4, $6, &@4, &@5, &@6);
+//			$$ = set_defun_body(p, $1, $2, $4, &@$);
+//		    /*% %*/
+//		    /*% ripper[$4]: bodystmt!(rescue_mod!($4, $6), Qnil, Qnil, Qnil) %*/
+//		    /*% ripper: def!(get_value($1), $2, $4) %*/
+//			local_pop(p);
+//		    }
+//		| defs_head f_opt_paren_args '=' command
+//		    {
+//			endless_method_name(p, $<node>1, &@1);
+//			restore_defun(p, $<node>1->nd_defn);
+//		    /*%%%*/
+//			$$ = set_defun_body(p, $1, $2, $4, &@$);
+//		    /*%
+//			$1 = get_value($1);
+//		    %*/
+//		    /*% ripper[$4]: bodystmt!($4, Qnil, Qnil, Qnil) %*/
+//		    /*% ripper: defs!(AREF($1, 0), AREF($1, 1), AREF($1, 2), $2, $4) %*/
+//			local_pop(p);
+//		    }
+//		| defs_head f_opt_paren_args '=' command modifier_rescue arg
+//		    {
+//			endless_method_name(p, $<node>1, &@1);
+//			restore_defun(p, $<node>1->nd_defn);
+//		    /*%%%*/
+//			$4 = rescued_expr(p, $4, $6, &@4, &@5, &@6);
+//			$$ = set_defun_body(p, $1, $2, $4, &@$);
+//		    /*%
+//			$1 = get_value($1);
+//		    %*/
+//		    /*% ripper[$4]: bodystmt!(rescue_mod!($4, $6), Qnil, Qnil, Qnil) %*/
+//		    /*% ripper: defs!(AREF($1, 0), AREF($1, 1), AREF($1, 2), $2, $4) %*/
+//			local_pop(p);
+//		    }
                 | backref tOP_ASGN command_rhs {
                     support.backrefAssignError($1);
                 }
@@ -512,6 +563,55 @@ expr            : command_call
                     $$ = support.getOperatorCallNode(support.getConditionNode($2), $1);
                 }
                 | arg
+
+def_name	: fname {
+                TruffleString fname = support.symbolID($1);
+		TruffleString currentArg = lexer.getCurrentArg();
+		support.assignableInCurr(fname, NilImplicitParseNode.NIL);
+		support.pushLocalScope();
+		lexer.setCurrentArg(null);
+		support.setInDef(true);
+		$$ = new MethodStubHolder(fname, currentArg);
+
+
+		/*
+                ID fname = get_id($1);
+                ID cur_arg = p->cur_arg;
+                YYSTYPE c = {.ctxt = p->ctxt};
+                numparam_name(p, fname);
+                local_push(p, 0);
+                p->cur_arg = 0;
+                p->ctxt.in_def = 1;
+                */
+                // $<node>$ = NEW_NODE(NODE_SELF, /*vid*/cur_arg, /*mid*/fname, /*cval*/c.val, &@$);
+		    }
+
+defn_head	: k_def def_name
+		    {
+		        // KEVIN MARKER
+			$$ = $2;
+		    }
+
+defs_head	: k_def singleton dot_or_colon
+		    {
+		    	lexer.setState(EXPR_FNAME);
+		    	support.setInDef(true);
+
+		    	/*
+			SET_LEX_STATE(EXPR_FNAME);
+			p->ctxt.in_argdef = 1;
+			*/
+		    }
+		  def_name
+		    {
+		    	lexer.setState(EXPR_ENDFN|EXPR_LABEL);
+		    	$$ = $5;
+
+
+			// SET_LEX_STATE(EXPR_ENDFN|EXPR_LABEL); /* force for args */
+			// $$ = $5;
+
+		    }
 
 expr_value      : expr {
                     value_expr(lexer, $1);
@@ -1251,6 +1351,40 @@ arg             : lhs '=' arg_rhs {
                     value_expr(lexer, $1);
                     $$ = new IfParseNode(support.getPosition($1), support.getConditionNode($1), $3, $6);
                 }
+		| defn_head f_opt_paren_args '=' arg {
+			// endless_method_name(p, $<node>1, &@1);
+			// restore_defun(p, $<node>1->nd_defn);
+		    /*%%%*/
+			// $$ = set_defun_body(p, $1, $2, $4, &@$);
+		    /*% %*/
+		    }
+		| defn_head f_opt_paren_args '=' arg modifier_rescue arg {
+			// endless_method_name(p, $<node>1, &@1);
+			// restore_defun(p, $<node>1->nd_defn);
+		    /*%%%*/
+			// $4 = rescued_expr(p, $4, $6, &@4, &@5, &@6);
+			// $$ = set_defun_body(p, $1, $2, $4, &@$);
+		    /*% %*/
+		    }
+		| defs_head f_opt_paren_args '=' arg {
+			// endless_method_name(p, $<node>1, &@1);
+			// restore_defun(p, $<node>1->nd_defn);
+		    /*%%%*/
+			// $$ = set_defun_body(p, $1, $2, $4, &@$);
+		    /*%
+			// $1 = get_value($1);
+		    %*/
+		    }
+		| defs_head f_opt_paren_args '=' arg modifier_rescue arg {
+			// endless_method_name(p, $<node>1, &@1);
+			// restore_defun(p, $<node>1->nd_defn);
+		    /*%%%*/
+			// $4 = rescued_expr(p, $4, $6, &@4, &@5, &@6);
+			// $$ = set_defun_body(p, $1, $2, $4, &@$);
+		    /*%
+			// $1 = get_value($1);
+		    %*/
+		    }
                 | primary {
                     $$ = $1;
                 }
@@ -1632,6 +1766,27 @@ primary         : literal
                     support.popCurrentScope();
                     support.setIsInClass($<Boolean>3.booleanValue());
                 }
+		| defn_head
+		  f_arglist
+		  bodystmt
+		  k_end
+		    {
+			// restore_defun(p, $<node>1->nd_defn);
+		    /*%%%*/
+			// $$ = set_defun_body(p, $1, $2, $3, &@$);
+		    }
+		| defs_head
+		  f_arglist
+		  bodystmt
+		  k_end
+		    {
+			// restore_defun(p, $<node>1->nd_defn);
+		    /*%%%*/
+			// $$ = set_defun_body(p, $1, $2, $3, &@$);
+		    /*%
+			// $1 = get_value($1);
+		    %*/
+		    }
                 | keyword_def fname {
                     support.pushLocalScope();
                     $$ = lexer.getCurrentArg();
@@ -1693,6 +1848,16 @@ k_class         : keyword_class {
 k_module        : keyword_module {
                     $$ = $1;
                 }
+
+k_def		: keyword_def {
+			// token_info_push(p, "def", &@$);
+			support.setInArgDef(true);
+			// p->ctxt.in_argdef = 1;
+		    }
+
+k_end		: keyword_end {
+			// token_info_pop(p, "end", &@$);
+		    }
 
 k_return        : keyword_return {
                     if (support.isInClass() && !support.isInDef() && !support.getCurrentScope().isBlockScope()) {
@@ -2409,6 +2574,29 @@ superclass      : tLT {
                 | /* none */ {
                    $$ = null;
                 }
+
+f_opt_paren_args: f_paren_args
+		| none {
+			support.setInArgDef(false);
+			ArgsTailHolder argsTail = support.new_args_tail(lexer.getPosition(), null, null, null);
+			$$ = support.new_args($1.getPosition(), null, null, null, null, argsTail);
+
+			// p->ctxt.in_argdef = 0;
+			// $$ = new_args_tail(p, Qnone, Qnone, Qnone, &@0);
+			// $$ = new_args(p, Qnone, Qnone, Qnone, Qnone, $$, &@0);
+		    }
+		;
+
+f_paren_args	: '(' f_args rparen {
+			$$ = $2;
+			lexer.setState(EXPR_BEG);
+			lexer.commandStart = true;
+			support.setInArgDef(false);
+
+			// SET_LEX_STATE(EXPR_BEG);
+			// p->command_start = TRUE;
+			// p->ctxt.in_argdef = 0;
+		    }
 
 // [!null]
 f_arglist       : tLPAREN2 f_args rparen {
