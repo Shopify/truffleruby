@@ -140,6 +140,34 @@ describe "IO#gets" do
         end
       end
     end
+
+    it "should match the separator with a limit even if the buffer is filled over successive reads" do
+      IO.pipe do |read, write|
+        # Write part of the string with the separator split between two write calls. We want
+        # the read to intertwine such that when the read starts the full data isn't yet
+        # available in the buffer.
+        s = "Aquí está la línea tres\r\n"
+        write.write(s)
+
+        t = Thread.new do
+          # Continue reading until the separator is encountered or the pipe is closed.
+          # For this test it's important that we set the limit past where the "\r\n\r\n" would appear,
+          # otherwise we might pass the test because we hit the limit and not because we found the separator.
+          read.gets("\r\n\r\n", s.bytesize + 4)
+        end
+
+        # Write the other half of the separator, which should cause the `gets` call to now
+        # match. Explicitly close the pipe for good measure so a bug in `gets` doesn't block forever.
+        Thread.pass until t.stop?
+
+        s2 = "else\r\n\r\n"
+        write.write("\r\n#{s2}")
+        write.close
+
+        t.value.bytes.should == "#{s}\r\n".bytes
+        read.read(s2.bytesize).bytes.should == s2.bytes
+      end
+    end
   end
 
   describe "when passed chomp" do

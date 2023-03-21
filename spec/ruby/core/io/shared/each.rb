@@ -81,6 +81,33 @@ describe :io_each, shared: true do
     it "does not accept Integers that don't fit in a C off_t" do
       -> { @io.send(@method, 2**128){} }.should raise_error(RangeError)
     end
+
+    it "continues searching for default separator until limit bytes read" do
+      IO.pipe do |read, write|
+        # Write part of the string with the separator split between two write calls. We want
+        # the read to intertwine such that when the read starts the full data isn't yet
+        # available in the buffer.
+        s = "Aquí está la línea tres"
+        write.write(s)
+
+        t = Thread.new do
+          # Continue reading until the separator is encountered or the pipe is closed.
+          # For this test it's important that we set the limit past where the "\r\n\r\n" would appear,
+          # otherwise we might pass the test because we hit the limit and not because we found the separator.
+          read.send(@method, s.bytesize + 4)
+        end
+
+        # Write the other half of the separator, which should cause the `gets` call to now
+        # match. Explicitly close the pipe for good measure so a bug in `gets` doesn't block forever.
+        Thread.pass until t.stop?
+
+        s2 = "foo"
+        write.write("\r\n#{s2}")
+        write.close
+
+        t.value.to_a.should == ["#{s}\r\n", "foo"]
+      end
+    end
   end
 
   describe "when passed a String containing one space as a separator" do
