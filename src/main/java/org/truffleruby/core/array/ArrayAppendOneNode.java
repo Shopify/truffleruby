@@ -9,17 +9,14 @@
  */
 package org.truffleruby.core.array;
 
-import static org.truffleruby.core.array.ArrayHelpers.setSize;
 import static org.truffleruby.core.array.ArrayHelpers.setStoreAndSize;
 
 import com.oracle.truffle.api.dsl.NeverDefault;
-import com.oracle.truffle.api.profiles.CountingConditionProfile;
 import org.truffleruby.core.array.library.ArrayStoreLibrary;
 import org.truffleruby.language.RubyContextSourceNode;
 import org.truffleruby.language.RubyNode;
 
 import com.oracle.truffle.api.dsl.Bind;
-import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.ImportStatic;
 import com.oracle.truffle.api.dsl.NodeChild;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -41,36 +38,9 @@ public abstract class ArrayAppendOneNode extends RubyContextSourceNode {
 
     public abstract RubyNode getValueNode();
 
-    // Append of the correct type
-
-    @Specialization(
-            guards = { "stores.acceptsValue(store, value)" },
-            limit = "storageStrategyLimit()")
-    protected RubyArray appendOneSameType(RubyArray array, Object value,
-            @Bind("array.getStore()") Object store,
-            @CachedLibrary("store") ArrayStoreLibrary stores,
-            @Cached CountingConditionProfile extendProfile) {
-        final int oldSize = array.size;
-        final int newSize = oldSize + 1;
-        final int length = stores.capacity(store);
-
-        if (extendProfile.profile(newSize > length)) {
-            final int capacity = ArrayUtils.capacityForOneMore(getLanguage(), length);
-            final Object newStore = stores.expand(store, capacity);
-            stores.write(newStore, oldSize, value);
-            setStoreAndSize(array, newStore, newSize);
-        } else {
-            stores.write(store, oldSize, value);
-            setSize(array, newSize);
-        }
-        return array;
-    }
-
     // Append forcing a generalization
 
-    @Specialization(
-            guards = "!currentStores.acceptsValue(array.getStore(), value)",
-            limit = "storageStrategyLimit()")
+    @Specialization(limit = "storageStrategyLimit()")
     protected RubyArray appendOneGeneralizeNonMutable(RubyArray array, Object value,
             @Bind("array.getStore()") Object currentStore,
             @CachedLibrary("currentStore") ArrayStoreLibrary currentStores,
