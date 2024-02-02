@@ -217,4 +217,20 @@ public abstract class RegexpNodes {
             return regexp.options.toOptions();
         }
     }
+
+    //    @CoreMethod(names = "linear_time?", onSingleton = true, required = 1, lowerFixnum = 1)
+    //    public abstract static class IsLinearTimeNode extends CoreMethodArrayArgumentsNode {
+    //        @Specialization
+    //        boolean isLinearTime(Object pattern, int options) {
+    //            return true;
+    //        }
+    //    }
+
+    @Primitive(name = "regexp_is_linear_time?", lowerFixnum = 1)
+    public abstract static class RegexpIsLinearTimeNode extends PrimitiveArrayArgumentsNode {
+        @Specialization
+        static boolean isLinearTime(Object pattern, int options) {
+            return true;
+        }
+    }
 }

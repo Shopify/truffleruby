@@ -183,6 +183,19 @@ class Regexp
     Primitive.regexp_compile pattern, opts # may be overridden by subclasses
   end
 
+  def self.linear_time?(pattern, opts = undefined)
+    if Primitive.is_a?(pattern, Regexp)
+      warn 'flags ignored' unless Primitive.undefined?(opts)
+      opts = pattern.options
+      pattern = pattern.source
+    else
+      pattern = Truffle::Type.rb_convert_type pattern, String, :to_str
+    end
+
+    opts = Primitive.undefined?(opts) ? 0 : opts
+    Primitive.regexp_is_linear_time?(pattern, opts)
+  end
+
   class << self
     alias_method :compile, :new
   end
