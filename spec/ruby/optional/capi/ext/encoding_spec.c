@@ -166,6 +166,8 @@ static VALUE encoding_spec_rb_enc_set_index(VALUE self, VALUE obj, VALUE index) 
   rb_encoding* enc = rb_enc_from_index(i);
   rb_enc_set_index(obj, i);
 
+  if (enc == NULL) return Qnil;
+
   return rb_ary_new3(2, rb_str_new2(rb_enc_name(enc)),
                      rb_str_new2(rb_enc_name(rb_enc_get(obj))));
 }

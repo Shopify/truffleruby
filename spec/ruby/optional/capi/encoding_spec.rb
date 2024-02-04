@@ -37,6 +37,26 @@ describe :rb_enc_set_index, shared: true do
       result = @s.send(@method, obj, 1)
     }.should raise_error(ArgumentError, "cannot set encoding on non-encoding capable object")
   end
+
+  it "raises an EncodingError if the index is larger than max" do
+    obj = "abc"
+    -> {
+      result = @s.send(@method, obj, 103)
+    }.should raise_error(EncodingError, "encoding index out of bound: 103")
+  end
+
+  it "raises an EncodingError if the index is negative" do
+    obj = "abc"
+    -> {
+      result = @s.send(@method, obj, -1)
+    }.should raise_error(EncodingError, "encoding index out of bound: -1")
+  end
+
+  it "does not raise an EncodingError if the index is below the max" do
+    obj = "abc"
+    result = @s.send(@method, obj, 102)
+    result.first.should == result.last
+  end
 end
 
 describe "C-API Encoding function" do

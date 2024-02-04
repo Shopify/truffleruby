@@ -949,6 +949,11 @@ module Truffle::CExt
 
   def rb_enc_set_index(obj, idx)
     enc = rb_enc_from_index(idx)
+
+    if Primitive.nil?(enc)
+      raise EncodingError, "encoding index out of bound: #{idx}"
+    end
+
     case obj
     when String
       obj.force_encoding enc
