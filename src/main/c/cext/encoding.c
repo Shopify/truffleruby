@@ -207,7 +207,9 @@ VALUE rb_enc_from_encoding(rb_encoding *encoding) {
 }
 
 rb_encoding* rb_enc_from_index(int index) {
-  return rb_to_encoding(rb_tr_wrap(polyglot_invoke(RUBY_CEXT, "rb_enc_from_index", index)));
+  VALUE enc = rb_tr_wrap(polyglot_invoke(RUBY_CEXT, "rb_enc_from_index", index));
+  if (NIL_P(enc)) return NULL;
+  return rb_to_encoding(enc);
 }
 
 int rb_enc_str_coderange(VALUE str) {

@@ -230,6 +230,9 @@ public final class EncodingManager {
     // Should only be used by Primitive.encoding_get_encoding_by_index
     @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
     RubyEncoding getRubyEncoding(int encodingIndex) {
+        if (encodingIndex < 0 || encodingIndex >= ENCODING_LIST_BY_ENCODING_INDEX.length) {
+            return null;
+        }
         return ENCODING_LIST_BY_ENCODING_INDEX[encodingIndex];
     }
 

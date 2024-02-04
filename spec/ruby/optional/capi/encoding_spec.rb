@@ -166,6 +166,11 @@ describe "C-API Encoding function" do
     it "returns an Encoding" do
       @s.rb_enc_from_index(0).should be_an_instance_of(String)
     end
+
+    it "returns nil for out of bound indexes" do
+      @s.rb_enc_from_index(-1).should be_nil
+      @s.rb_enc_from_index(103).should be_nil
+    end
   end
 
   describe "rb_enc_mbc_to_codepoint" do
