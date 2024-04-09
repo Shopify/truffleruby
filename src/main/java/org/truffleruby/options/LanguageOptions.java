@@ -129,6 +129,8 @@ public final class LanguageOptions {
     public final boolean RUN_TWICE;
     /** --experimental-engine-caching=RUN_TWICE */
     public final boolean EXPERIMENTAL_ENGINE_CACHING;
+    /** --log-split-locations=false */
+    public final boolean LOG_SPLIT_LOCATIONS;
 
     public LanguageOptions(Env env, OptionValues options, boolean singleContext) {
         CORE_LOAD_PATH = options.get(OptionsCatalog.CORE_LOAD_PATH_KEY);
@@ -184,6 +186,7 @@ public final class LanguageOptions {
         SHARED_OBJECTS_FORCE = options.get(OptionsCatalog.SHARED_OBJECTS_FORCE_KEY);
         RUN_TWICE = options.get(OptionsCatalog.RUN_TWICE_KEY);
         EXPERIMENTAL_ENGINE_CACHING = options.hasBeenSet(OptionsCatalog.EXPERIMENTAL_ENGINE_CACHING_KEY) ? options.get(OptionsCatalog.EXPERIMENTAL_ENGINE_CACHING_KEY) : RUN_TWICE;
+        LOG_SPLIT_LOCATIONS = options.get(OptionsCatalog.LOG_SPLIT_LOCATIONS_KEY);
     }
 
     public Object fromDescriptor(OptionDescriptor descriptor) {
@@ -294,6 +297,8 @@ public final class LanguageOptions {
                 return RUN_TWICE;
             case "ruby.experimental-engine-caching":
                 return EXPERIMENTAL_ENGINE_CACHING;
+            case "ruby.log-split-locations":
+                return LOG_SPLIT_LOCATIONS;
             default:
                 return null;
         }
@@ -352,7 +357,8 @@ public final class LanguageOptions {
                one.get(OptionsCatalog.SHARED_OBJECTS_DEBUG_KEY).equals(two.get(OptionsCatalog.SHARED_OBJECTS_DEBUG_KEY)) &&
                one.get(OptionsCatalog.SHARED_OBJECTS_FORCE_KEY).equals(two.get(OptionsCatalog.SHARED_OBJECTS_FORCE_KEY)) &&
                one.get(OptionsCatalog.RUN_TWICE_KEY).equals(two.get(OptionsCatalog.RUN_TWICE_KEY)) &&
-               one.get(OptionsCatalog.EXPERIMENTAL_ENGINE_CACHING_KEY).equals(two.get(OptionsCatalog.EXPERIMENTAL_ENGINE_CACHING_KEY));
+               one.get(OptionsCatalog.EXPERIMENTAL_ENGINE_CACHING_KEY).equals(two.get(OptionsCatalog.EXPERIMENTAL_ENGINE_CACHING_KEY)) &&
+               one.get(OptionsCatalog.LOG_SPLIT_LOCATIONS_KEY).equals(two.get(OptionsCatalog.LOG_SPLIT_LOCATIONS_KEY));
     }
 
     public static boolean areOptionsCompatibleOrLog(TruffleLogger logger, LanguageOptions oldOptions, LanguageOptions newOptions) {
@@ -727,6 +733,13 @@ public final class LanguageOptions {
         newValue = newOptions.EXPERIMENTAL_ENGINE_CACHING;
         if (!newValue.equals(oldValue)) {
             logger.fine("not reusing pre-initialized context: --experimental-engine-caching differs, was: " + oldValue + " and is now: " + newValue);
+            return false;
+        }
+
+        oldValue = oldOptions.LOG_SPLIT_LOCATIONS;
+        newValue = newOptions.LOG_SPLIT_LOCATIONS;
+        if (!newValue.equals(oldValue)) {
+            logger.fine("not reusing pre-initialized context: --log-split-locations differs, was: " + oldValue + " and is now: " + newValue);
             return false;
         }
 

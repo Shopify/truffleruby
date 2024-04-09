@@ -54,7 +54,8 @@ LANGUAGE_OPTIONS:
 - ALWAYS_CLONE_ALL
 - BUILDING_CORE_CEXTS
 - INSTRUMENT_ALL_NODES
-
+- LOG_SPLIT_LOCATIONS
+-
 USER:
   STABLE:
     # Options corresponding to MRI options, which are also useful outside the TruffleRuby launcher
@@ -264,3 +265,5 @@ INTERNAL: # Options for debugging the TruffleRuby implementation
 
     # Options for the regular expression engines
     COMPARE_REGEX_ENGINES: [compare-regex-engines, boolean, false, 'Uses both Joni and the TRegex engine and compares their results']
+
+    LOG_SPLIT_LOCATIONS: [log-split-locations, boolean, false, 'Log the locations of split points in the AST']

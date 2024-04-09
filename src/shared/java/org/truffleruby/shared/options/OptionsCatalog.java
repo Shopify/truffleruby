@@ -163,6 +163,7 @@ public final class OptionsCatalog {
     public static final OptionKey<Boolean> RUN_TWICE_KEY = new OptionKey<>(false);
     public static final OptionKey<Boolean> EXPERIMENTAL_ENGINE_CACHING_KEY = new OptionKey<>(RUN_TWICE_KEY.getDefaultValue());
     public static final OptionKey<Boolean> COMPARE_REGEX_ENGINES_KEY = new OptionKey<>(false);
+    public static final OptionKey<Boolean> LOG_SPLIT_LOCATIONS_KEY = new OptionKey<>(false);
 
     public static final OptionDescriptor LOAD_PATHS = OptionDescriptor
             .newBuilder(LOAD_PATHS_KEY, "ruby.load-paths")
@@ -1308,6 +1309,14 @@ public final class OptionsCatalog {
             .usageSyntax("")
             .build();
 
+    public static final OptionDescriptor LOG_SPLIT_LOCATIONS = OptionDescriptor
+            .newBuilder(LOG_SPLIT_LOCATIONS_KEY, "ruby.log-split-locations")
+            .help("Log the locations of split points in the AST")
+            .category(OptionCategory.INTERNAL)
+            .stability(OptionStability.EXPERIMENTAL)
+            .usageSyntax("")
+            .build();
+
     public static OptionDescriptor fromName(String name) {
         switch (name) {
             case "ruby.load-paths":
@@ -1596,6 +1605,8 @@ public final class OptionsCatalog {
                 return EXPERIMENTAL_ENGINE_CACHING;
             case "ruby.compare-regex-engines":
                 return COMPARE_REGEX_ENGINES;
+            case "ruby.log-split-locations":
+                return LOG_SPLIT_LOCATIONS;
             default:
                 return null;
         }
@@ -1746,6 +1757,7 @@ public final class OptionsCatalog {
             RUN_TWICE,
             EXPERIMENTAL_ENGINE_CACHING,
             COMPARE_REGEX_ENGINES,
+            LOG_SPLIT_LOCATIONS,
         };
     }
 }

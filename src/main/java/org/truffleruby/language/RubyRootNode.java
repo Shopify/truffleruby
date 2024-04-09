@@ -149,6 +149,13 @@ public class RubyRootNode extends RubyBaseRootNode {
     public final RootNode cloneUninitialized() {
         RubyRootNode clone = cloneUninitializedRootNode();
 
+        if (getLanguage().options.LOG_SPLIT_LOCATIONS) {
+            System.err.println("\n==========================================");
+            getContext().getDefaultBacktraceFormatter().printBacktraceOnEnvStderr(
+                    "Splitting: " + this.getName() + "(" + getLanguage().getCurrentThread().toString() + ") ", this);
+            System.err.println("==========================================\n");
+        }
+
         if (getLanguage().options.CHECK_CLONE_UNINITIALIZED_CORRECTNESS) {
             ensureCloneUninitializedCorrectness(clone);
         }
